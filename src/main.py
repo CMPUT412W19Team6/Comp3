@@ -77,7 +77,7 @@ class FollowLine(State):
     def image_callback(self, msg):
         if not self.image_received:
             self.image_received = True
-        
+
         global RED_VISIBLE, PHASE, red_area_threshold, white_max_h, white_max_s, white_max_v, white_min_h, white_min_s, white_min_v, red_max_h, red_max_s, red_max_v, red_min_h, red_min_s, red_min_v
 
         image = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
@@ -115,31 +115,34 @@ class FollowLine(State):
             self.cy = cy
             cv2.circle(image, (cx, cy), 20, (0, 0, 255), -1)
 
-        if self.phase == "4.2" and M['m00'] == 0:    #no more white line ahead
+        if self.phase == "4.2" and M['m00'] == 0:  # no more white line ahead
             self.start_timeout = True
         elif self.phase != "4.2":
-            if self.phase == "2.1":  #calculate sum of area of contours of red and green shapes
+            if self.phase == "2.1":  # calculate sum of area of contours of red and green shapes
                 # mask_red[h/2:h, 0:w] = 0
-                im2, contours, hierarchy = cv2.findContours(mask_red, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+                im2, contours, hierarchy = cv2.findContours(
+                    mask_red, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
                 total_area = sum([cv2.contourArea(x) for x in contours])
-                im2, contours, hierarchy = cv2.findContours(mask_green, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+                im2, contours, hierarchy = cv2.findContours(
+                    mask_green, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
                 total_area += sum([cv2.contourArea(x) for x in contours])
-            else:   #calculate sum of area of contours of red tapes
+            else:  # calculate sum of area of contours of red tapes
                 mask_red[0:search_top, 0:w] = 0
                 im2, contours, hierarchy = cv2.findContours(
-                mask_red, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+                    mask_red, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
                 total_area = sum([cv2.contourArea(x) for x in contours])
 
-            if len(contours) > 0:   #Keep the maximum sum of area of red/green objects since first detection
+            if len(contours) > 0:  # Keep the maximum sum of area of red/green objects since first detection
                 self.found_object = True
                 self.object_area = max(self.object_area, total_area)
 
-            if len(contours) == 0 and self.found_object:   #red objects no more visible since last detection
+            # red objects no more visible since last detection
+            if len(contours) == 0 and self.found_object:
                 print self.object_area
                 self.found_object = False
-                if self.object_area < red_area_threshold and self.object_area > 1000: #valid small red object in front
+                if self.object_area < red_area_threshold and self.object_area > 1000:  # valid small red object in front
                     self.start_timeout = True
-                elif self.object_area > red_area_threshold: #valid large red object in front
+                elif self.object_area > red_area_threshold:  # valid large red object in front
                     if self.phase == "4.1":
                         self.start_timeout = True
                     else:
@@ -717,9 +720,34 @@ class ParkNext(State):
 class Signal4(State):
     def __init__(self, led1, led1color, led2=False, led2color=None, playsound=True):
         State.__init__(self, outcomes=["done"])
+        self.led1 = led1
+        self.led1color = led1color
+        self.led2 = led2
+        self.led2color = led2color
+        self.playsound = playsound
+
+        self.led1_pub = rospy.Publisher(
+            "/mobile_base/commands/led1", Led, queue_size=1)
+        self.led2_pub = rospy.Publisher(
+            "/mobile_base/commands/led2", Led, queue_size=1)
+        self.sound_pub = rospy.Publisher(
+            '/mobile_base/commands/sound', Sound, queue_size=1)
 
     def execute(self, userdata):
         pass
+
+        if self.playsound:
+            self.sound_pub.publish(Sound(0))
+        if self.led1:
+            self.led1_pub.publish(self.led1color)
+        if self.led2:
+            self.led2_pub.publish(self.led2color)
+
+        rospy.sleep(rospy.Duration(3))
+        if self.led1:
+            self.led1_pub.publish(0)
+        if self.led2:
+            self.led2_pub.publish(0)
 
 
 class CheckCompletion(State):
@@ -864,13 +892,13 @@ if __name__ == "__main__":
             StateMachine.add("MatchShape", CheckShape(), transitions={
                              "matched": "SignalShape", "failure": "ParkNext", "exit": "exit"})
 
-            StateMachine.add("SignalAR", Signal4(1, 1), transitions={
+            StateMachine.add("SignalAR", Signal4(True, 1), transitions={
                              "done": "CheckCompletion"})
 
-            StateMachine.add("SignalShape", Signal4(1, 1), transitions={
+            StateMachine.add("SignalShape", Signal4(True, 2), transitions={
                              "done": "CheckCompletion"})
 
-            StateMachine.add("SignalRandom", Signal4(1, 1), transitions={
+            StateMachine.add("SignalRandom", Signal4(True, 3), transitions={
                              "done": "CheckCompletion"})
 
             StateMachine.add("CheckCompletion", CheckCompletion(), transitions={
