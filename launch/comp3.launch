@@ -151,7 +151,7 @@
             <remap from="ar_pose_marker" to="ar_pose_marker_base"/>
         </node>
 
-        <node pkg="comp3" type="main.py" name="comp2" output="screen">
+        <node pkg="comp3" type="main.py" name="comp3" output="screen">
             <remap from="cmd_vel" to="$(arg velocity_topic)"/>
         </node>
         <node pkg="comp3" type="count2.py" name="count2" output="screen"/>
