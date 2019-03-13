@@ -95,8 +95,8 @@ class FollowLine(State):
 
         mask_red = cv2.inRange(hsv2, lower_red, upper_red)
 
-        lower_green = np.array([50, 100, 100])
-        upper_green = np.array([120, 255, 255])
+        lower_green = np.array([108, 68, 100])
+        upper_green = np.array([200, 255, 255])
         mask_green = cv2.inRange(hsv, lower_green, upper_green)
 
         h, w, d = image.shape
@@ -131,6 +131,7 @@ class FollowLine(State):
                 im2, contours, hierarchy = cv2.findContours(
                     mask_red, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
                 total_area = sum([cv2.contourArea(x) for x in contours])
+            contours = [x for x in contours if cv2.contourArea(x) > 10]
 
             if len(contours) > 0:  # Keep the maximum sum of area of red/green objects since first detection
                 self.found_object = True
@@ -154,7 +155,7 @@ class FollowLine(State):
                     self.start_timeout = True
                 self.object_area = 0
 
-        cv2.imshow("window", mask_red)
+        cv2.imshow("window", mask_green)
         cv2.waitKey(3)
 
     def execute(self, userdata):
@@ -782,13 +783,13 @@ if __name__ == "__main__":
     white_min_s = rospy.get_param("~white_min_s", 0)
     white_min_v = rospy.get_param("~white_min_v", 230)
 
-    red_max_h = rospy.get_param("~red_max_h", 360)
-    red_max_s = rospy.get_param("~red_max_s", 256)
-    red_max_v = rospy.get_param("~red_max_v", 225)
+    red_max_h = rospy.get_param("~red_max_h", 226.8)
+    red_max_s = rospy.get_param("~red_max_s", 295.2)
+    red_max_v = rospy.get_param("~red_max_v", 256)
 
-    red_min_h = rospy.get_param("~red_min_h", 150)
-    red_min_s = rospy.get_param("~red_min_s", 150)
-    red_min_v = rospy.get_param("~red_min_v", 80)
+    red_min_h = rospy.get_param("~red_min_h", 0)
+    red_min_s = rospy.get_param("~red_min_s", 64.8)
+    red_min_v = rospy.get_param("~red_min_v", 216)
 
     red_timeout = rospy.Duration(rospy.get_param("~red_timeout", 0.5))
 
