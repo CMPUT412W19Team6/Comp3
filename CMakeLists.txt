@@ -72,11 +72,6 @@ find_package(catkin REQUIRED COMPONENTS
 #   std_msgs  # Or other packages containing msgs
 # )
 
-## Generate dynamic reconfigure headers/packages
-generate_dynamic_reconfigure_options(
-  cfg/Comp3.cfg
-)
-
 ################################################
 ## Declare ROS dynamic reconfigure parameters ##
 ################################################
@@ -96,6 +91,11 @@ generate_dynamic_reconfigure_options(
 #   cfg/DynReconf1.cfg
 #   cfg/DynReconf2.cfg
 # )
+
+## Generate dynamic reconfigure headers/packages
+generate_dynamic_reconfigure_options(
+  cfg/Comp3.cfg
+)
 
 ###################################
 ## catkin specific configuration ##

@@ -20,7 +20,7 @@
     <arg name="odom_topic"                                  default="odom"/>
     <arg name="laser_topic"                                 default="scan"/>
     <arg name="imu_topic"                                   default="/mobile_base/sensors/imu_data"/>
-    <arg name="velocity_topic"                              default="navigation_velocity_smoother/raw_cmd_vel1"/>
+    <arg name="velocity_topic"                              default="navigation_velocity_smoother/raw_cmd_vel"/>
     <arg name="map_frame"                                   default="map"/>
     <arg name="odom_frame"                                  default="odom"/>
     <arg name="base_frame"                                  default="base_footprint"/>

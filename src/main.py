@@ -66,6 +66,8 @@ class FollowLine(State):
         self.found_object = False
         self.start_timeout = False
         self.temporary_stop = False
+        self.image_received = False
+        self.white_line_ended = False
         self.cx = None
         self.cy = None
         self.w = None
@@ -73,6 +75,9 @@ class FollowLine(State):
         self.dt = 1.0 / 20.0
 
     def image_callback(self, msg):
+        if not self.image_received:
+            self.image_received = True
+        
         global RED_VISIBLE, PHASE, red_area_threshold, white_max_h, white_max_s, white_max_v, white_min_h, white_min_s, white_min_v, red_max_h, red_max_s, red_max_v, red_min_h, red_min_s, red_min_v
 
         image = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
@@ -110,39 +115,43 @@ class FollowLine(State):
             self.cy = cy
             cv2.circle(image, (cx, cy), 20, (0, 0, 255), -1)
 
-        if PHASE == "2.1":  # calculate sum of area of contours of red and green shapes
-            mask_red[h/2:h, 0:w] = 0
-            im2, contours, hierarchy = cv2.findContours(
+        if self.phase == "4.2" and M['m00'] == 0:    #no more white line ahead
+            self.start_timeout = True
+        elif self.phase != "4.2":
+            if self.phase == "2.1":  #calculate sum of area of contours of red and green shapes
+                # mask_red[h/2:h, 0:w] = 0
+                im2, contours, hierarchy = cv2.findContours(mask_red, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+                total_area = sum([cv2.contourArea(x) for x in contours])
+                im2, contours, hierarchy = cv2.findContours(mask_green, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+                total_area += sum([cv2.contourArea(x) for x in contours])
+            else:   #calculate sum of area of contours of red tapes
+                mask_red[0:search_top, 0:w] = 0
+                im2, contours, hierarchy = cv2.findContours(
                 mask_red, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-            total_area = sum([cv2.contourArea(x) for x in contours])
-            im2, contours, hierarchy = cv2.findContours(
-                mask_green, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-            total_area += sum([cv2.contourArea(x) for x in contours])
-        else:  # calculate sum of area of contours of red tapes
-            mask_red[0:search_top, 0:w] = 0
-            im2, contours, hierarchy = cv2.findContours(
-                mask_red, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-            total_area = sum([cv2.contourArea(x) for x in contours])
+                total_area = sum([cv2.contourArea(x) for x in contours])
 
-        if len(contours) > 0:  # Keep the maximum sum of area of red/green objects since first detection
-            self.found_object = True
-            self.object_area = max(self.object_area, total_area)
+            if len(contours) > 0:   #Keep the maximum sum of area of red/green objects since first detection
+                self.found_object = True
+                self.object_area = max(self.object_area, total_area)
 
-        # red objects no more visible since last detection
-        if len(contours) == 0 and self.found_object:
-            self.found_object = False
-            if self.object_area < red_area_threshold and self.object_area > 1000:  # valid small red object in front
-                self.start_timeout = True
-            elif self.object_area > red_area_threshold:  # valid large red object in front
-                self.temporary_stop = True
-            self.object_area = 0
-        elif PHASE == "2.1" and self.found_object:
-            self.found_object = False
-            if self.object_area > 2000:
-                self.start_timeout = True
-            self.object_area = 0
+            if len(contours) == 0 and self.found_object:   #red objects no more visible since last detection
+                print self.object_area
+                self.found_object = False
+                if self.object_area < red_area_threshold and self.object_area > 1000: #valid small red object in front
+                    self.start_timeout = True
+                elif self.object_area > red_area_threshold: #valid large red object in front
+                    if self.phase == "4.1":
+                        self.start_timeout = True
+                    else:
+                        self.temporary_stop = True
+                self.object_area = 0
+            elif PHASE == "2.1" and self.found_object:
+                self.found_object = False
+                if self.object_area > 2000:
+                    self.start_timeout = True
+                self.object_area = 0
 
-        cv2.imshow("window", image)
+        cv2.imshow("window", mask_red)
         cv2.waitKey(3)
 
     def execute(self, userdata):
@@ -154,10 +163,10 @@ class FollowLine(State):
         sleep_duration = rospy.Duration(self.dt, 0)
         PHASE = self.phase
 
+        self.reset()
         image_sub = rospy.Subscriber(
             '/usb_cam/image_raw', Image, self.image_callback)
 
-        self.reset()
         start_time = None
 
         # if self.phase == "2.1":
@@ -168,6 +177,9 @@ class FollowLine(State):
         #     Kd = 1.0 / 700.0
 
         while not rospy.is_shutdown() and START:
+            if not self.image_received:
+                continue
+
             if self.temporary_stop:
                 rospy.sleep(rospy.Duration(2.0))
                 self.temporary_stop = False
@@ -178,9 +190,14 @@ class FollowLine(State):
             if self.start_timeout and start_time + red_timeout < rospy.Time.now():
                 start_time = None
                 self.start_timeout = False
-
                 image_sub.unregister()
-                return "see_red"
+
+                if self.phase == "4.1":
+                    return "see_long_red"
+                elif self.phase == "4.2":
+                    return "see_nothing"
+                else:
+                    return "see_red"
 
             # BEGIN CONTROL
             if self.cx is not None and self.w is not None:
