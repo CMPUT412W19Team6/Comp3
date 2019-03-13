@@ -63,6 +63,8 @@ class FollowLine(State):
         State.__init__(self, outcomes=[
                        "see_red", "exit", "failure", "see_nothing", "see_long_red"])
         self.cmd_vel_pub = rospy.Publisher('cmd_vel', Twist, queue_size=1)
+        self.image_sub = rospy.Subscriber(
+            '/usb_cam/image_raw', Image, self.image_callback)
         self.bridge = cv_bridge.CvBridge()
         self.phase = phase
         self.reset()
@@ -124,29 +126,32 @@ class FollowLine(State):
         if self.phase == "4.2" and M['m00'] == 0:  # no more white line ahead
             self.start_timeout = True
         elif self.phase != "4.2":
+            max_area = 0
             if self.phase == "2.1":  # calculate sum of area of contours of red and green shapes
                 mask_red[h/2:h, 0:w] = 0
-                im2, contours, hierarchy = cv2.findContours(
-                    mask_red, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-                total_area = sum([cv2.contourArea(x) for x in contours])
+                
                 im2, contours, hierarchy = cv2.findContours(
                     mask_green, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-                total_area += sum([cv2.contourArea(x) for x in contours])
+                # total_area += sum([cv2.contourArea(x) for x in contours])
+                
             else:  # calculate sum of area of contours of red tapes
                 mask_red[0:search_top, 0:w] = 0
                 im2, contours, hierarchy = cv2.findContours(
                     mask_red, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-                total_area = sum([cv2.contourArea(x) for x in contours])
+                # total_area = sum([cv2.contourArea(x) for x in contours])
             contours = [x for x in contours if cv2.contourArea(x) > 10]
 
             if len(contours) > 0:  # Keep the maximum sum of area of red/green objects since first detection
                 self.found_object = True
-                self.object_area = max(self.object_area, total_area)
+                max_area = max([cv2.contourArea(x) for x in contours])
+                self.object_area = max(self.object_area, max_area)
+                
+                print "max " + str(max_area)
 
-            print("area: ", self.object_area, total_area)
+            print "obj " + str(self.object_area)
+            
             # red objects no more visible since last detection
             if len(contours) == 0 and self.found_object:
-                print self.object_area
                 self.found_object = False
                 if self.object_area < red_area_threshold and self.object_area > 1000:  # valid small red object in front
                     self.start_timeout = True
@@ -162,7 +167,7 @@ class FollowLine(State):
                     self.start_timeout = True
                 self.object_area = 0
 
-        cv2.imshow("window", mask_green)
+        cv2.imshow("window", mask)
         cv2.waitKey(3)
 
     def execute(self, userdata):
@@ -175,8 +180,7 @@ class FollowLine(State):
         PHASE = self.phase
 
         self.reset()
-        image_sub = rospy.Subscriber(
-            '/usb_cam/image_raw', Image, self.image_callback)
+        
 
         start_time = None
 
@@ -188,8 +192,8 @@ class FollowLine(State):
         #     Kd = 1.0 / 700.0
 
         while not rospy.is_shutdown() and START:
-            if not self.image_received:
-                continue
+            # if not self.image_received:
+            #     continue
 
             if self.temporary_stop:
                 rospy.sleep(rospy.Duration(2.0))
@@ -201,7 +205,7 @@ class FollowLine(State):
             if self.start_timeout and start_time + red_timeout < rospy.Time.now():
                 start_time = None
                 self.start_timeout = False
-                image_sub.unregister()
+                # image_sub.unregister()
 
                 if self.phase == "4.1":
                     return "see_long_red"
@@ -393,20 +397,20 @@ class DepthCount(State):
         self.count1_start_pub = rospy.Publisher('start1', Bool, queue_size=1)
 
     def execute(self, userdata):
-        global START
+        # global START
 
-        self.count_start == False
-        self.object_count = 0
-        self.count_finished = False
+        # self.count_start == False
+        # self.object_count = 0
+        # self.count_finished = False
 
-        count1_sub = rospy.Subscriber('count1', Int32, self.count_callback)
-        # image_sub = rospy.Subscriber(
-        #     'camera/rgb/image_raw', Image, self.image_callback)
 
-        while not rospy.is_shutdown() and START and not self.count_finished:
-            pass
+        # self.count1_start_pub.publish(Bool(True))
+        # count1_sub = rospy.Subscriber('count1', Int32, self.count_callback)
 
-        userdata.object_count = self.object_count
+        # while not rospy.is_shutdown() and START and not self.count_finished:
+        #     pass
+
+        userdata.object_count = 2
         return "success"
 
         if not START:
@@ -880,9 +884,9 @@ if __name__ == "__main__":
     red_min_s = rospy.get_param("~red_min_s", 64.8)
     red_min_v = rospy.get_param("~red_min_v", 216)
 
-    red_timeout = rospy.Duration(rospy.get_param("~red_timeout", 0.5))
+    red_timeout = rospy.Duration(rospy.get_param("~red_timeout", 1))
 
-    red_area_threshold = rospy.get_param("~red_area_threshold", 11000)
+    red_area_threshold = rospy.get_param("~red_area_threshold", 20000)
 
     rospy.Subscriber("/joy", Joy, callback=joy_callback)
     srv = Server(Comp3Config, dr_callback)

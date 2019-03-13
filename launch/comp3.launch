@@ -20,7 +20,8 @@
     <arg name="odom_topic"                                  default="odom"/>
     <arg name="laser_topic"                                 default="scan"/>
     <arg name="imu_topic"                                   default="/mobile_base/sensors/imu_data"/>
-    <arg name="velocity_topic"                              default="navigation_velocity_smoother/raw_cmd_vel"/>
+    <!-- <arg name="velocity_topic"                              default="navigation_velocity_smoother/raw_cmd_vel"/> -->
+    <arg name="velocity_topic"                              default="cmd_vel_mux/input/teleop"/>
     <arg name="map_frame"                                   default="map"/>
     <arg name="odom_frame"                                  default="odom"/>
     <arg name="base_frame"                                  default="base_footprint"/>
@@ -53,8 +54,8 @@
         <include file="$(find turtlebot_bringup)/launch/3dsensor.launch"/>
     </group>
 
-    <include file="$(find turtlebot_navigation)/launch/includes/velocity_smoother.launch.xml"/>
-    <include file="$(find turtlebot_navigation)/launch/includes/safety_controller.launch.xml"/>
+    <!-- <include file="$(find turtlebot_navigation)/launch/includes/velocity_smoother.launch.xml"/>
+    <include file="$(find turtlebot_navigation)/launch/includes/safety_controller.launch.xml"/> -->
 
     <include file="$(eval find(arg('package')) + '/launch/misc/logitech.launch')" if="$(eval joy)">
         <arg name="publish_topic" value="$(arg velocity_topic)"/>
@@ -156,8 +157,8 @@
         </node>
         <node pkg="comp3" type="count2.py" name="count2" output="screen"/>
         <node pkg="comp3" type="recong4.py" name="recong4" output="screen"/>
-        <node pkg="comp3" type="count1.py" name="recong4" output="screen"/>
-        <node pkg="comp3" type="findShape4.py" name="recong4" output="screen"/>
+        <node pkg="comp3" type="count1.py" name="count1" output="screen"/>
+        <node pkg="comp3" type="findshape4.py" name="findShape4" output="screen"/>
 
         <node pkg="usb_cam" type="usb_cam_node" name="usb_cam" output="screen">
             <param name="video_device" value="$(arg video_device)"/>
