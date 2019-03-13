@@ -156,6 +156,8 @@
         </node>
         <node pkg="comp3" type="count2.py" name="count2" output="screen"/>
         <node pkg="comp3" type="recong4.py" name="recong4" output="screen"/>
+        <node pkg="comp3" type="count1.py" name="recong4" output="screen"/>
+        <node pkg="comp3" type="findShape4.py" name="recong4" output="screen"/>
 
         <node pkg="usb_cam" type="usb_cam_node" name="usb_cam" output="screen">
             <param name="video_device" value="$(arg video_device)"/>

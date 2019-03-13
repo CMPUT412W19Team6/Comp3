@@ -143,6 +143,7 @@ class FollowLine(State):
                 self.found_object = True
                 self.object_area = max(self.object_area, total_area)
 
+            print("area: ", self.object_area, total_area)
             # red objects no more visible since last detection
             if len(contours) == 0 and self.found_object:
                 print self.object_area
@@ -389,6 +390,7 @@ class DepthCount(State):
         self.count_start = False
         self.object_count = 0
         self.count_finished = False
+        self.count1_start_pub = rospy.Publisher('start1', Bool, queue_size=1)
 
     def execute(self, userdata):
         global START
@@ -397,48 +399,53 @@ class DepthCount(State):
         self.object_count = 0
         self.count_finished = False
 
-        image_sub = rospy.Subscriber(
-            'camera/rgb/image_raw', Image, self.image_callback)
+        count1_sub = rospy.Subscriber('count1', Int32, self.count_callback)
+        # image_sub = rospy.Subscriber(
+        #     'camera/rgb/image_raw', Image, self.image_callback)
 
         while not rospy.is_shutdown() and START and not self.count_finished:
             pass
 
-        image_sub.unregister()
         userdata.object_count = self.object_count
         return "success"
 
         if not START:
             return "exit"
 
-    def image_callback(self, msg):
-        global RED_VISIBLE, red_area_threshold, white_max_h, white_max_s, white_max_v, white_min_h, white_min_s, white_min_v, red_max_h, red_max_s, red_max_v, red_min_h, red_min_s, red_min_v
+    def count_callback(self, msg):
+        self.object_count = msg.data
+        self.count1_start_pub.publish(Bool(False))
+        self.count_finished = True
 
-        if self.count_start:
-            rospy.sleep(rospy.Duration(2))
-            image = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
-            hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+    # def image_callback(self, msg):
+    #     global RED_VISIBLE, red_area_threshold, white_max_h, white_max_s, white_max_v, white_min_h, white_min_s, white_min_v, red_max_h, red_max_s, red_max_v, red_min_h, red_min_s, red_min_v
 
-            lower_red = np.array([red_min_h,  red_min_s,  red_min_v])
-            upper_red = np.array([red_max_h, red_max_s, red_max_v])
+    #     if self.count_start:
+    #         rospy.sleep(rospy.Duration(2))
+    #         image = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
+    #         hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
 
-            mask_red = cv2.inRange(hsv, lower_red, upper_red)
-            self.object_count = 0
+    #         lower_red = np.array([red_min_h,  red_min_s,  red_min_v])
+    #         upper_red = np.array([red_max_h, red_max_s, red_max_v])
 
-            # cv2.imshow("window", mask_red)
-            gray = mask_red
-            blurred = cv2.GaussianBlur(gray, (5, 5), 0)
-            thresh = cv2.threshold(blurred, 60, 255, cv2.THRESH_BINARY)[1]
-            cnts = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL,
-                                    cv2.CHAIN_APPROX_SIMPLE)
-            cnts = imutils.grab_contours(cnts)
-            areas = [c for c in cnts if cv2.contourArea(c) > 140]
-            self.object_count = len(areas)
-            if len(areas) > 3:
-                self.object_count = 3
-            if len(areas) < 1:
-                self.object_count = 1
+    #         mask_red = cv2.inRange(hsv, lower_red, upper_red)
+    #         self.object_count = 0
 
-            self.count_finished = True
+    #         # cv2.imshow("window", mask_red)
+    #         gray = mask_red
+    #         blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+    #         thresh = cv2.threshold(blurred, 60, 255, cv2.THRESH_BINARY)[1]
+    #         cnts = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL,
+    #                                 cv2.CHAIN_APPROX_SIMPLE)
+    #         cnts = imutils.grab_contours(cnts)
+    #         areas = [c for c in cnts if cv2.contourArea(c) > 140]
+    #         self.object_count = len(areas)
+    #         if len(areas) > 3:
+    #             self.object_count = 3
+    #         if len(areas) < 1:
+    #             self.object_count = 1
+
+    #         self.count_finished = True
 
 
 class Signal1(State):
@@ -659,13 +666,13 @@ def dr_callback(config, level):
     # white_min_s = config["white_min_s"]
     # white_min_v = config["white_min_v"]
 
-    red_max_h = config["red_max_h"]
-    red_max_s = config["red_max_s"]
-    red_max_v = config["red_max_v"]
+    # red_max_h = config["red_max_h"]
+    # red_max_s = config["red_max_s"]
+    # red_max_v = config["red_max_v"]
 
-    red_min_h = config["red_min_h"]
-    red_min_s = config["red_min_s"]
-    red_min_v = config["red_min_v"]
+    # red_min_h = config["red_min_h"]
+    # red_min_s = config["red_min_s"]
+    # red_min_v = config["red_min_v"]
 
     # red_area_threshold = config["red_area_threshold"]
     # red_timeout = rospy.Duration(config["red_timeout"])
@@ -720,12 +727,13 @@ class ParkNext(State):
         State.__init__(self, outcomes=[
                        "see_shape", "see_AR", "close_to_random", "find_nothing"])
 
-        self.checkpoint_list = [MoveBaseGoal(), MoveBaseGoal(), MoveBaseGoal(), MoveBaseGoal(), MoveBaseGoal(), MoveBaseGoal(), MoveBaseGoal(), MoveBaseGoal()]
+        self.checkpoint_list = [MoveBaseGoal(), MoveBaseGoal(), MoveBaseGoal(
+        ), MoveBaseGoal(), MoveBaseGoal(), MoveBaseGoal(), MoveBaseGoal(), MoveBaseGoal()]
         self.move_base_client = actionlib.SimpleActionClient(
             "move_base", MoveBaseAction)
+        self.shape_start_pub = rospy.Publisher(
+            'startShape4', Bool, queue_size=1)
 
-        
-    
     def reset(self):
         self.marker_data_received = False
         self.found_marker = False
@@ -737,17 +745,24 @@ class ParkNext(State):
         if len(msg.markers) > 0:
             self.found_marker = True
 
+    def shape_callback(self, msg):
+        self.found_shape = msg.data
+
     def execute(self, userdata):
         global START, CURRENT_CHECKPOINT, UNKNOWN_CHECKPOINT, PHASE4_TASK_COMPLETED
 
         self.reset()
         marker_sub = rospy.Subscriber(
             'ar_pose_marker_base', AlvarMarkers, self.marker_callback)
+        shape_sub = rospy.Subscriber('hasShape4', Bool, self.shape_callback)
+
+        self.shape_start_pub.publish(Bool(True))
 
         if not rospy.is_shutdown() and START:
             while not self.marker_data_received:
                 continue
-            result = self.move_base_client.send_goal_and_wait(self.checkpoint_list[CURRENT_CHECKPOINT])
+            result = self.move_base_client.send_goal_and_wait(
+                self.checkpoint_list[CURRENT_CHECKPOINT])
 
             if CURRENT_CHECKPOINT == UNKNOWN_CHECKPOINT:
                 marker_sub.unregister()
@@ -759,11 +774,16 @@ class ParkNext(State):
 
                 if self.found_marker:
                     marker_sub.unregister()
+                    self.shape_start_pub.publish(Bool(False))
                     return "see_AR"
-                #elif found marker
+                # elif found marker
+                elif self.found_shape:
+                    self.shape_start_pub.publish(Bool(False))
+                    return "see_shape"
                 else:
                     CURRENT_CHECKPOINT += 1
                     marker_sub.unregister()
+                    self.shape_start_pub.publish(Bool(False))
                     return "find_nothing"
 
         marker_sub.unregister()
