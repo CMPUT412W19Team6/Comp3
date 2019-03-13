@@ -54,7 +54,8 @@ class FollowLine(State):
     """
 
     def __init__(self, phase="1.0"):
-        State.__init__(self, outcomes=["see_red", "exit", "failure"])
+        State.__init__(self, outcomes=[
+                       "see_red", "exit", "failure", "see_nothing", "see_long_red"])
         self.cmd_vel_pub = rospy.Publisher('cmd_vel', Twist, queue_size=1)
         self.bridge = cv_bridge.CvBridge()
         self.phase = phase
@@ -70,7 +71,6 @@ class FollowLine(State):
         self.w = None
         self.object_area = 0
         self.dt = 1.0 / 20.0
-        
 
     def image_callback(self, msg):
         global RED_VISIBLE, PHASE, red_area_threshold, white_max_h, white_max_s, white_max_v, white_min_h, white_min_s, white_min_v, red_max_h, red_max_s, red_max_v, red_min_h, red_min_s, red_min_v
@@ -109,28 +109,31 @@ class FollowLine(State):
             self.cx = cx
             self.cy = cy
             cv2.circle(image, (cx, cy), 20, (0, 0, 255), -1)
-        
-        if PHASE == "2.1":  #calculate sum of area of contours of red and green shapes
+
+        if PHASE == "2.1":  # calculate sum of area of contours of red and green shapes
             mask_red[h/2:h, 0:w] = 0
-            im2, contours, hierarchy = cv2.findContours(mask_red, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+            im2, contours, hierarchy = cv2.findContours(
+                mask_red, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
             total_area = sum([cv2.contourArea(x) for x in contours])
-            im2, contours, hierarchy = cv2.findContours(mask_green, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+            im2, contours, hierarchy = cv2.findContours(
+                mask_green, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
             total_area += sum([cv2.contourArea(x) for x in contours])
-        else:   #calculate sum of area of contours of red tapes
+        else:  # calculate sum of area of contours of red tapes
             mask_red[0:search_top, 0:w] = 0
             im2, contours, hierarchy = cv2.findContours(
-            mask_red, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+                mask_red, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
             total_area = sum([cv2.contourArea(x) for x in contours])
 
-        if len(contours) > 0:   #Keep the maximum sum of area of red/green objects since first detection
+        if len(contours) > 0:  # Keep the maximum sum of area of red/green objects since first detection
             self.found_object = True
             self.object_area = max(self.object_area, total_area)
 
-        if len(contours) == 0 and self.found_object:   #red objects no more visible since last detection
+        # red objects no more visible since last detection
+        if len(contours) == 0 and self.found_object:
             self.found_object = False
-            if self.object_area < red_area_threshold and self.object_area > 1000: #valid small red object in front
+            if self.object_area < red_area_threshold and self.object_area > 1000:  # valid small red object in front
                 self.start_timeout = True
-            elif self.object_area > red_area_threshold: #valid large red object in front
+            elif self.object_area > red_area_threshold:  # valid large red object in front
                 self.temporary_stop = True
             self.object_area = 0
         elif PHASE == "2.1" and self.found_object:
@@ -151,7 +154,8 @@ class FollowLine(State):
         sleep_duration = rospy.Duration(self.dt, 0)
         PHASE = self.phase
 
-        image_sub = rospy.Subscriber('/usb_cam/image_raw', Image, self.image_callback)
+        image_sub = rospy.Subscriber(
+            '/usb_cam/image_raw', Image, self.image_callback)
 
         self.reset()
         start_time = None
@@ -189,14 +193,15 @@ class FollowLine(State):
                 # move(FORWARD_CURRENT, TURN_CURRENT, self.cmd_vel_pub, 0.3)
 
                 self.twist.linear.x = linear_vel
-                self.twist.angular.z = - (Kp * float(error) + Kd * derivative + Ki * integral)
+                self.twist.angular.z = - \
+                    (Kp * float(error) + Kd * derivative + Ki * integral)
                 self.cmd_vel_pub.publish(self.twist)
 
                 previous_error = error
 
                 rospy.sleep(sleep_duration)
             # END CONTROL
-        
+
         image_sub.unregister()
         if not START:
             return "exit"
@@ -365,7 +370,8 @@ class DepthCount(State):
         self.object_count = 0
         self.count_finished = False
 
-        image_sub = rospy.Subscriber('camera/rgb/image_raw', Image, self.image_callback)
+        image_sub = rospy.Subscriber(
+            'camera/rgb/image_raw', Image, self.image_callback)
 
         while not rospy.is_shutdown() and START and not self.count_finished:
             pass
@@ -674,6 +680,47 @@ def ramped_vel(v_prev, v_target, ramp_rate):
         return v_prev + sign*step
 
 
+class StartParking(State):
+    def __init__(self):
+        State.__init__(self, outcomes=["ready"])
+
+    def execute(self, userdata):
+        pass
+
+
+class ParkNext(State):
+    def __init__(self):
+        State.__init__(self, outcomes=[
+                       "see_shape", "see_AR", "close_to_random", "find_nothing"])
+
+    def execute(self, userdata):
+        pass
+
+
+class Signal4(State):
+    def __init__(self, led1, led1color, led2=False, led2color=None, playsound=True):
+        State.__init__(self, outcomes=["done"])
+
+    def execute(self, userdata):
+        pass
+
+
+class CheckCompletion(State):
+    def __init__(self):
+        State.__init__(self, outcomes=["completed", "not_completed"])
+
+    def execute(self, userdata):
+        pass
+
+
+class ParkAtExit(State):
+    def __init__(self):
+        State.__init__(self, outcomes=["done"])
+
+    def execute(self, userdata):
+        pass
+
+
 if __name__ == "__main__":
     rospy.init_node('comp3')
 
@@ -711,13 +758,13 @@ if __name__ == "__main__":
                          transitions={'pressed': 'Phase1', 'exit': 'failure'})
 
         StateMachine.add("Ending", FollowLine(),
-                         transitions={"see_red": "Wait", "failure": "failure", "exit": "Wait"})
+                         transitions={"see_red": "Wait", "failure": "failure", "exit": "Wait", "see_nothing": "failure", "see_long_red": "failure"})
 
         # Phase 1 sub state
         phase1_sm = StateMachine(outcomes=['success', 'failure', 'exit'])
         with phase1_sm:
             StateMachine.add("Finding1", FollowLine(), transitions={
-                             "see_red": "Turn11", "failure": "failure", "exit": "exit"})
+                             "see_red": "Turn11", "failure": "failure", "exit": "exit", "see_nothing": "failure", "see_long_red": "failure"})
             StateMachine.add("Turn11", Turn(90), transitions={
                              "success": "Count1", "failure": "failure", "exit": "exit"})  # turn left 90 degrees
             StateMachine.add("Count1", DepthCount(), transitions={
@@ -733,11 +780,11 @@ if __name__ == "__main__":
         phase2_sm = StateMachine(outcomes=['success', 'failure', 'exit'])
         with phase2_sm:
             StateMachine.add("Finding2", FollowLine("2.0"), transitions={
-                "see_red": "Turn21", "failure": "failure", "exit": "exit"})
+                "see_red": "Turn21", "failure": "failure", "exit": "exit", "see_nothing": "failure", "see_long_red": "failure"})
             StateMachine.add("Turn21", Turn(180), transitions={
                              "success": "FollowToEnd", "failure": "failure", "exit": "exit"})
             StateMachine.add("FollowToEnd", FollowLine("2.1"), transitions={
-                             "see_red": "TurnLeftAbit", 'failure': "FindGreenShape", "exit": "exit"})
+                             "see_red": "TurnLeftAbit", 'failure': "FindGreenShape", "exit": "exit", "see_nothing": "failure", "see_long_red": "failure"})
             StateMachine.add("TurnLeftAbit", Turn(-100), transitions={
                              "success": "Backup", "failure": "failure", "exit": "exit"})
             StateMachine.add("Backup", Translate(
@@ -747,17 +794,17 @@ if __name__ == "__main__":
             StateMachine.add("TurnBack", Turn(90), transitions={
                 "success": "MoveForward", "failure": "failure", "exit": "exit"})
             StateMachine.add("MoveForward", FollowLine("2.2"), transitions={
-                "see_red": "Turn22", "failure": "failure", "exit": "exit"})
+                "see_red": "Turn22", "failure": "failure", "exit": "exit", "see_nothing": "failure", "see_long_red": "failure"})
             StateMachine.add("Turn22", Turn(90), transitions={
                 "success": "success", "failure": "failure", "exit": "exit"})  # turn left 90
         StateMachine.add("Phase2", phase2_sm, transitions={
-            'success': 'Phase3', 'failure': 'failure', 'exit': 'Wait'})
+            'success': 'Phase4', 'failure': 'failure', 'exit': 'Wait'})
 
         # Phase 3 sub state
         phase3_sm = StateMachine(outcomes=['success', 'failure', 'exit'])
         with phase3_sm:
             StateMachine.add("Finding3", FollowLine("3.1"), transitions={
-                "see_red": "Turn31", "failure": "failure", "exit": "exit"})
+                "see_red": "Turn31", "failure": "failure", "exit": "exit", "see_nothing": "failure", "see_long_red": "failure"})
             StateMachine.add("Turn31", Turn(0), transitions={
                              "success": "CheckShape", "failure": "failure", "exit": "exit"})  # turn left 90
             StateMachine.add("CheckShape", CheckShape(), transitions={
@@ -769,6 +816,57 @@ if __name__ == "__main__":
 
         StateMachine.add("Phase3", phase3_sm, transitions={
             'success': 'Ending', 'failure': 'failure', 'exit': 'Wait'})
+
+        # Phase 4 sub state
+        phase4_sm = StateMachine(outcomes=['success', 'failure', 'exit'])
+        with phase4_sm:
+            StateMachine.add("Finding4", FollowLine("4.1"), transitions={
+                "see_long_red": "MoveForward", "see_nothing": "failure", "see_red": "failure", "failure": "failure", "exit": "exit"
+            })
+
+            StateMachine.add("MoveForward", Translate(), transitions={
+                "success": "Turn41"
+            })
+
+            StateMachine.add("Turn41", Turn(-30), transitions={
+                "success": "FollowRamp", "failure": "failure", "exit": "exit"
+            })
+
+            StateMachine.add("FollowRamp", FollowLine("4.2"), transitions={
+                "see_nothing": "StartParking", "see_long_red": "failure", "see_red": "failure", "failure": "failure", "exit": "exit"
+            })
+
+            StateMachine.add("StartParking", StartParking(), transitions={
+                "ready": "ParkNext"
+            })
+
+            StateMachine.add("ParkNext", ParkNext(), transitions={
+                "see_shape": "MatchShape", "see_AR": "SignalAR", "close_to_random": "SignalRandom", "find_nothing": "ParkNext"
+            })
+
+            StateMachine.add("MatchShape", CheckShape(), transitions={
+                             "matched": "SignalShape", "failure": "ParkNext", "exit": "exit"})
+
+            StateMachine.add("SignalAR", Signal4(1, 1), transitions={
+                             "done": "CheckCompletion"})
+
+            StateMachine.add("SignalShape", Signal4(1, 1), transitions={
+                             "done": "CheckCompletion"})
+
+            StateMachine.add("SignalRandom", Signal4(1, 1), transitions={
+                             "done": "CheckCompletion"})
+
+            StateMachine.add("CheckCompletion", CheckCompletion(), transitions={
+                             "completed": "PartAtExit", "not_completed": "ParkNext"})
+
+            StateMachine.add("PartAtExit", ParkAtExit(), transitions={
+                             "done": "ForwardUntilWhite"})
+
+            StateMachine.add("ForwardUntilWhite", Translate(),
+                             transitions={"success": "success"})
+
+        StateMachine.add("Phase4", phase4_sm, transitions={
+                         'success': 'Phase3', 'failure': 'failure', 'exit': 'Wait'})
 
     sis = smach_ros.IntrospectionServer('server_name', sm, '/SM_ROOT')
     sis.start()
