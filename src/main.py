@@ -119,7 +119,7 @@ class FollowLine(State):
             self.start_timeout = True
         elif self.phase != "4.2":
             if self.phase == "2.1":  #calculate sum of area of contours of red and green shapes
-                # mask_red[h/2:h, 0:w] = 0
+                mask_red[h/2:h, 0:w] = 0
                 im2, contours, hierarchy = cv2.findContours(mask_red, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
                 total_area = sum([cv2.contourArea(x) for x in contours])
                 im2, contours, hierarchy = cv2.findContours(mask_green, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
