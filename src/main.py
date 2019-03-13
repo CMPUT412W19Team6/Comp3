@@ -3,15 +3,18 @@
 import rospy
 import cv2
 import cv_bridge
-from geometry_msgs.msg import Twist
 from smach import State, StateMachine
 import smach_ros
 from dynamic_reconfigure.server import Server
 from comp3.cfg import Comp3Config
+from ar_track_alvar_msgs.msg import AlvarMarkers
+from geometry_msgs.msg import Twist, Pose, PoseStamped, PointStamped
 from nav_msgs.msg import Odometry
 from kobuki_msgs.msg import BumperEvent, Sound, Led
+from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 from tf.transformations import decompose_matrix, compose_matrix
 from ros_numpy import numpify
+import actionlib
 from sensor_msgs.msg import Joy, LaserScan, Image
 import numpy as np
 import angles as angles_lib
@@ -29,6 +32,9 @@ PHASE = None
 SHAPE = None
 SHAPE_MATCHED = False
 NUM_SHAPES = 0
+CURRENT_CHECKPOINT = 0
+UNKNOWN_CHECKPOINT = 0
+PHASE4_TASK_COMPLETED = 0
 
 # TODO: update POSE from callback
 
@@ -714,8 +720,53 @@ class ParkNext(State):
         State.__init__(self, outcomes=[
                        "see_shape", "see_AR", "close_to_random", "find_nothing"])
 
+        self.checkpoint_list = [MoveBaseGoal(), MoveBaseGoal(), MoveBaseGoal(), MoveBaseGoal(), MoveBaseGoal(), MoveBaseGoal(), MoveBaseGoal(), MoveBaseGoal()]
+        self.move_base_client = actionlib.SimpleActionClient(
+            "move_base", MoveBaseAction)
+
+        
+    
+    def reset(self):
+        self.marker_data_received = False
+        self.found_marker = False
+
+    def marker_callback(self, msg):
+        if not self.marker_data_received:
+            self.marker_data_received = True
+
+        if len(msg.markers) > 0:
+            self.found_marker = True
+
     def execute(self, userdata):
-        pass
+        global START, CURRENT_CHECKPOINT, UNKNOWN_CHECKPOINT, PHASE4_TASK_COMPLETED
+
+        self.reset()
+        marker_sub = rospy.Subscriber(
+            'ar_pose_marker_base', AlvarMarkers, self.marker_callback)
+
+        if not rospy.is_shutdown() and START:
+            while not self.marker_data_received:
+                continue
+            result = self.move_base_client.send_goal_and_wait(self.checkpoint_list[CURRENT_CHECKPOINT])
+
+            if CURRENT_CHECKPOINT == UNKNOWN_CHECKPOINT:
+                marker_sub.unregister()
+                return "close_to_random"
+            else:
+                self.found_marker = False
+
+                rospy.sleep(rospy.Duration(2))
+
+                if self.found_marker:
+                    marker_sub.unregister()
+                    return "see_AR"
+                #elif found marker
+                else:
+                    CURRENT_CHECKPOINT += 1
+                    marker_sub.unregister()
+                    return "find_nothing"
+
+        marker_sub.unregister()
 
 
 class Signal4(State):
@@ -756,15 +807,33 @@ class CheckCompletion(State):
         State.__init__(self, outcomes=["completed", "not_completed"])
 
     def execute(self, userdata):
-        pass
+        global PHASE4_TASK_COMPLETED, CURRENT_CHECKPOINT
+
+        if START and not rospy.is_shutdown():
+            PHASE4_TASK_COMPLETED += 1
+
+            if PHASE4_TASK_COMPLETED == 3 or CURRENT_CHECKPOINT == 7:
+                return "completed"
+            else:
+                CURRENT_CHECKPOINT += 1
+                return "not_completed"
 
 
 class ParkAtExit(State):
     def __init__(self):
         State.__init__(self, outcomes=["done"])
 
+        self.end_goal = MoveBaseGoal()
+        self.move_base_client = actionlib.SimpleActionClient(
+            "move_base", MoveBaseAction)
+
     def execute(self, userdata):
-        pass
+        result = None
+        while not rospy.is_shutdown() and START and result != 3:
+            result = self.move_base_client.send_goal_and_wait(self.end_goal)
+
+            if result == 3:
+                return "done"
 
 
 if __name__ == "__main__":
