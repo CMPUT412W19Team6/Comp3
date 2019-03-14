@@ -970,7 +970,7 @@ if __name__ == "__main__":
                 "see_red": "Turn31", "failure": "failure", "exit": "exit", "see_nothing": "failure", "see_long_red": "failure"})
             StateMachine.add("Turn31", Turn(0), transitions={
                              "success": "CheckShape", "failure": "failure", "exit": "exit"})  # turn left 90
-            StateMachine.add("C heckShape", CheckShape(), transitions={
+            StateMachine.add("CheckShape", CheckShape(), transitions={
                              "matched": "Signal3", "failure": "TurnRight", "exit": "exit"})
             StateMachine.add("Signal3", Signal3(), transitions={
                              "success": "TurnRight", "failure": "failure", "exit": "exit"})
@@ -1050,6 +1050,11 @@ if __name__ == "__main__":
             StateMachine.add("Turn41", Turn(135), transitions={
                 "success": "FollowRamp", "failure": "failure", "exit": "exit"
             })
+
+            StateMachine.add("FollowRamp", FollowLine("4.2"), transitions={
+                "see_nothing": checkpoint_sequence[0] + "-0", "see_long_red": "failure", "see_red": "failure", "failure": "failure", "exit": "exit"
+            })
+
             for i in xrange(len(checkpoint_sequence)):
                 moves_to_point = move_list[checkpoint_sequence[i]]
                 for j in xrange(len(moves_to_point)):
@@ -1084,7 +1089,11 @@ if __name__ == "__main__":
                             StateMachine.add(checkpoint_sequence[i] + "-" + "CheckCompletion", CheckCompletion(), transitions={
                                             "completed": "ForwardUntilWhite", "not_completed": next_state_name})
                         elif i == len(checkpoint_sequence) -1: # last move of last point
-                            pass
+                            
+
+                            StateMachine.add(name, moves_to_point[j], transitions={
+                                "success": "ForwardUntilWhite", "failure": "failure", "exit": "exit"
+                            })
                     elif j < len(moves_to_point) - 1:
                         next_state_name = checkpoint_sequence[i] + "-" + str(j + 1)
 
