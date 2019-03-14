@@ -275,7 +275,7 @@ def check_forward_distance(forward_vec, start_pos, current_pos):
 
 class Translate(State):
     def __init__(self, distance=0.15, linear=-0.2):
-        State.__init__(self, outcomes=["success"])
+        State.__init__(self, outcomes=["success", "exit", 'failure'])
         self.tb_position = None
         self.tb_rot = None
         self.distance = distance
@@ -981,55 +981,157 @@ if __name__ == "__main__":
             'success': 'Ending', 'failure': 'failure', 'exit': 'Wait'})
 
         # Phase 4 sub state
+        # phase4_sm = StateMachine(outcomes=['success', 'failure', 'exit'])
+        # with phase4_sm:
+        #     StateMachine.add("Finding4", FollowLine("4.1"), transitions={
+        #         "see_long_red": "MoveForward", "see_nothing": "failure", "see_red": "failure", "failure": "failure", "exit": "exit"
+        #     })
+
+        #     StateMachine.add("MoveForward", Translate(), transitions={
+        #         "success": "Turn41"
+        #     })
+
+        #     StateMachine.add("Turn41", Turn(-30), transitions={
+        #         "success": "FollowRamp", "failure": "failure", "exit": "exit"
+        #     })
+
+        #     StateMachine.add("FollowRamp", FollowLine("4.2"), transitions={
+        #         "see_nothing": "StartParking", "see_long_red": "failure", "see_red": "failure", "failure": "failure", "exit": "exit"
+        #     })
+
+        #     StateMachine.add("StartParking", StartParking(), transitions={
+        #         "ready": "ParkNext"
+        #     })
+
+        #     StateMachine.add("ParkNext", ParkNext(), transitions={
+        #         "see_shape": "MatchShape", "see_AR": "SignalAR", "close_to_random": "SignalRandom", "find_nothing": "ParkNext"
+        #     })
+
+        #     StateMachine.add("MatchShape", CheckShape(), transitions={
+        #                      "matched": "SignalShape", "failure": "ParkNext", "exit": "exit"})
+
+        #     StateMachine.add("SignalAR", Signal4(True, 1), transitions={
+        #                      "done": "CheckCompletion"})
+
+        #     StateMachine.add("SignalShape", Signal4(True, 2), transitions={
+        #                      "done": "CheckCompletion"})
+
+        #     StateMachine.add("SignalRandom", Signal4(True, 3), transitions={
+        #                      "done": "CheckCompletion"})
+
+        #     StateMachine.add("CheckCompletion", CheckCompletion(), transitions={
+        #                      "completed": "PartAtExit", "not_completed": "ParkNext"})
+
+        #     StateMachine.add("PartAtExit", ParkAtExit(), transitions={
+        #                      "done": "ForwardUntilWhite"})
+
+        #     StateMachine.add("ForwardUntilWhite", Translate(),
+        #                      transitions={"success": "success"})
+
         phase4_sm = StateMachine(outcomes=['success', 'failure', 'exit'])
+
+        move_list = {
+            "point8": [Turn(90), Translate(0.5, 0.2), Turn(0), Translate(0.3, 0.2)],
+            "point5": [Turn(90), Translate(0.5, 0.2), Turn(0), Translate(0.3, 0.2)],
+            "point4": [Turn(180), Translate(0.5, 0.2), Turn(90), Translate(0.3, 0.2)]
+        }
+
+        checkpoint_sequence = ["point8", "point5", "point4"]
+
         with phase4_sm:
-            StateMachine.add("Finding4", FollowLine("4.1"), transitions={
-                "see_long_red": "MoveForward", "see_nothing": "failure", "see_red": "failure", "failure": "failure", "exit": "exit"
-            })
+            i = 0
 
             StateMachine.add("MoveForward", Translate(distance=0.5, linear=0.2), transitions={
                 "success": "Turn41"
             })
+            StateMachine.add("ForwardUntilWhite", Translate(),
+                                        transitions={"success": "success"}) 
 
             StateMachine.add("Turn41", Turn(135), transitions={
                 "success": "FollowRamp", "failure": "failure", "exit": "exit"
             })
+            for i in xrange(len(checkpoint_sequence)):
+                moves_to_point = move_list[checkpoint_sequence[i]]
+                for j in xrange(len(moves_to_point)):
+                    
+                    name = checkpoint_sequence[i] + "-" + str(j)
+                    next_state_name = None
 
-            StateMachine.add("FollowRamp", FollowLine("4.2"), transitions={
-                "see_nothing": "StartParking", "see_long_red": "failure", "see_red": "failure", "failure": "failure", "exit": "exit"
-            })
+                    if j == len(moves_to_point) - 1:
+                        if i < len(checkpoint_sequence) - 1:
+                            next_state_name = checkpoint_sequence[i + 1] + "-" + str(0)
 
-            StateMachine.add("StartParking", StartParking(), transitions={
-                "ready": "ParkNext"
-            })
+                            StateMachine.add(name, moves_to_point[j], transitions={
+                                "success": checkpoint_sequence[i] + "-" + "ParkNext", "failure": "failure", "exit": "exit"
+                            })
 
-            StateMachine.add("ParkNext", ParkNext(), transitions={
-                "see_shape": "MatchShape", "see_AR": "SignalAR", "close_to_random": "SignalRandom", "find_nothing": "ParkNext"
-            })
+                            StateMachine.add(checkpoint_sequence[i] + "-" + "ParkNext", ParkNext(), transitions={
+                                "see_shape": checkpoint_sequence[i] + "-" + "MatchShape", "see_AR": checkpoint_sequence[i] + "-" + "SignalAR", "close_to_random": checkpoint_sequence[i] + "-" + "SignalRandom", "find_nothing": next_state_name
+                            })
 
-            StateMachine.add("MatchShape", CheckShape(), transitions={
-                             "matched": "SignalShape", "failure": "ParkNext", "exit": "exit"})
+                            StateMachine.add(checkpoint_sequence[i] + "-" + "MatchShape", CheckShape(), transitions={
+                                            "matched": checkpoint_sequence[i] + "-" + "SignalShape", "failure": checkpoint_sequence[i] + "-" + "ParkNext", "exit": "exit"})
 
-            StateMachine.add("SignalAR", Signal4(True, 1), transitions={
-                             "done": "CheckCompletion"})
+                            StateMachine.add(checkpoint_sequence[i] + "-" + "SignalAR", Signal4(True, 1), transitions={
+                                            "done": checkpoint_sequence[i] + "-" + "CheckCompletion"})
 
-            StateMachine.add("SignalShape", Signal4(True, 2), transitions={
-                             "done": "CheckCompletion"})
+                            StateMachine.add(checkpoint_sequence[i] + "-" + "SignalShape", Signal4(True, 2), transitions={
+                                            "done": checkpoint_sequence[i] + "-" + "CheckCompletion"})
 
-            StateMachine.add("SignalRandom", Signal4(True, 3), transitions={
-                             "done": "CheckCompletion"})
+                            StateMachine.add(checkpoint_sequence[i] + "-" + "SignalRandom", Signal4(True, 3), transitions={
+                                            "done": checkpoint_sequence[i] + "-" + "CheckCompletion"})
 
-            StateMachine.add("CheckCompletion", CheckCompletion(), transitions={
-                             "completed": "PartAtExit", "not_completed": "ParkNext"})
+                            StateMachine.add(checkpoint_sequence[i] + "-" + "CheckCompletion", CheckCompletion(), transitions={
+                                            "completed": "ForwardUntilWhite", "not_completed": next_state_name})
+                        elif i == len(checkpoint_sequence) -1: # last move of last point
+                            pass
+                    elif j < len(moves_to_point) - 1:
+                        next_state_name = checkpoint_sequence[i] + "-" + str(j + 1)
 
-            StateMachine.add("PartAtExit", ParkAtExit(), transitions={
-                             "done": "ForwardUntilWhite"})
+                        StateMachine.add(name, moves_to_point[j], transitions={
+                            "success": next_state_name, "failure": "failure", "exit": "exit"
+                        })
 
-            StateMachine.add("ForwardUntilWhite", Translate(),
-                             transitions={"success": "success"})
+              
+
+                
+
+
+        # with phase4_sm:
+            
+
+        #     StateMachine.add("ParkNext", ParkNext(), transitions={
+        #         "see_shape": "MatchShape", "see_AR": "SignalAR", "close_to_random": "SignalRandom", "find_nothing": "ParkNext"
+        #     })
+
+        #     StateMachine.add("MatchShape", CheckShape(), transitions={
+        #                      "matched": "SignalShape", "failure": "ParkNext", "exit": "exit"})
+
+        #     StateMachine.add("SignalAR", Signal4(True, 1), transitions={
+        #                      "done": "CheckCompletion"})
+
+        #     StateMachine.add("SignalShape", Signal4(True, 2), transitions={
+        #                      "done": "CheckCompletion"})
+
+        #     StateMachine.add("SignalRandom", Signal4(True, 3), transitions={
+        #                      "done": "CheckCompletion"})
+
+        #     StateMachine.add("CheckCompletion", CheckCompletion(), transitions={
+        #                      "completed": "PartAtExit", "not_completed": "ParkNext"})
+
+        #     StateMachine.add("PartAtExit", ParkAtExit(), transitions={
+        #                      "done": "ForwardUntilWhite"})
+
+        #     StateMachine.add("ForwardUntilWhite", Translate(),
+        #                      transitions={"success": "success"})
+
+        # StateMachine.add("Phase4", phase4_sm, transitions={
+        #                  'success': 'Phase3', 'failure': 'failure', 'exit': 'Wait'})
 
         StateMachine.add("Phase4", phase4_sm, transitions={
                          'success': 'Phase3', 'failure': 'failure', 'exit': 'Wait'})
+
+        
 
     sis = smach_ros.IntrospectionServer('server_name', sm, '/SM_ROOT')
     sis.start()
