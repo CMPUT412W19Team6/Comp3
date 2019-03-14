@@ -62,11 +62,15 @@ class FollowLine(State):
     def __init__(self, phase="1.0"):
         State.__init__(self, outcomes=[
                        "see_red", "exit", "failure", "see_nothing", "see_long_red"])
-        self.cmd_vel_pub = rospy.Publisher('cmd_vel', Twist, queue_size=1)
         self.image_sub = rospy.Subscriber(
             '/usb_cam/image_raw', Image, self.image_callback)
+        self.cmd_vel_pub = rospy.Publisher('cmd_vel', Twist, queue_size=1)
         self.bridge = cv_bridge.CvBridge()
         self.phase = phase
+        self.green_start_pub = rospy.Publisher(
+            'green_start', Bool, queue_size=1)
+        self.green_sub = rospy.Subscriber('hasShape2', Bool, self.green_callback)
+        self.find_green = False
         self.reset()
 
     def reset(self):
@@ -81,6 +85,9 @@ class FollowLine(State):
         self.w = None
         self.object_area = 0
         self.dt = 1.0 / 20.0
+
+    def green_callback(self, msg):
+        self.find_green = msg.data
 
     def image_callback(self, msg):
         if not self.image_received:
@@ -125,19 +132,22 @@ class FollowLine(State):
 
         if self.phase == "4.2" and M['m00'] == 0:  # no more white line ahead
             self.start_timeout = True
+        elif self.phase == "2.1":
+            if self.find_green and M['m00'] == 0:
+                self.start_timeout = True
         elif self.phase != "4.2":
             max_area = 0
-            if self.phase == "2.1":  # calculate sum of area of contours of red and green shapes
-                mask_red[h/2:h, 0:w] = 0
-                
-                im2, contours, hierarchy = cv2.findContours(
-                    mask_green, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-                # total_area += sum([cv2.contourArea(x) for x in contours])
-                
-            else:  # calculate sum of area of contours of red tapes
-                mask_red[0:search_top, 0:w] = 0
-                im2, contours, hierarchy = cv2.findContours(
-                    mask_red, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+            # if self.phase == "2.1":  # calculate sum of area of contours of red and green shapes
+            #     mask_red[h/2:h, 0:w] = 0
+
+            #     im2, contours, hierarchy = cv2.findContours(
+            #         mask_green, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+            #     # total_area += sum([cv2.contourArea(x) for x in contours])
+
+            # else:  # calculate sum of area of contours of red tapes
+            # mask_red[0:search_top, 0:w] = 0
+            im2, contours, hierarchy = cv2.findContours(
+                mask_red, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
                 # total_area = sum([cv2.contourArea(x) for x in contours])
             contours = [x for x in contours if cv2.contourArea(x) > 10]
 
@@ -145,15 +155,15 @@ class FollowLine(State):
                 self.found_object = True
                 max_area = max([cv2.contourArea(x) for x in contours])
                 self.object_area = max(self.object_area, max_area)
-                
-                print "max " + str(max_area)
 
-            print "obj " + str(self.object_area)
-            
             # red objects no more visible since last detection
             if len(contours) == 0 and self.found_object:
                 self.found_object = False
-                if self.object_area < red_area_threshold and self.object_area > 1000:  # valid small red object in front
+                thresh = 1000
+                if self.phase=="2.2":
+                    thresh = 200
+                print(self.object_area)
+                if self.object_area < red_area_threshold and self.object_area > thresh:  # valid small red object in front
                     self.start_timeout = True
                 elif self.object_area > red_area_threshold:  # valid large red object in front
                     if self.phase == "4.1":
@@ -161,13 +171,14 @@ class FollowLine(State):
                     else:
                         self.temporary_stop = True
                 self.object_area = 0
-            elif PHASE == "2.1" and self.found_object:
-                self.found_object = False
-                if self.object_area > 2000:
-                    self.start_timeout = True
-                self.object_area = 0
+            # elif PHASE == "2.1" and self.found_object:
+            #     print(self.object_area)
+            #     self.found_object = False
+            #     if self.object_area > 800:
+            #         self.start_timeout = True
+            #     self.object_area = 0
 
-        cv2.imshow("window", mask)
+        cv2.imshow("window", mask_red)
         cv2.waitKey(3)
 
     def execute(self, userdata):
@@ -180,10 +191,11 @@ class FollowLine(State):
         PHASE = self.phase
 
         self.reset()
-        
 
         start_time = None
 
+        if self.phase == "2.1":
+            self.green_start_pub.publish(Bool(True))
         # if self.phase == "2.1":
         #     Kp = 1.0 / 350.0
         #     Kd = 1.0 / 700.0
@@ -211,6 +223,9 @@ class FollowLine(State):
                     return "see_long_red"
                 elif self.phase == "4.2":
                     return "see_nothing"
+                elif self.phase == "2.1":
+                    self.green_start_pub.publish(Bool(False))
+                    return "see_red"
                 else:
                     return "see_red"
 
@@ -234,7 +249,7 @@ class FollowLine(State):
                 rospy.sleep(sleep_duration)
             # END CONTROL
 
-        image_sub.unregister()
+        # image_sub.unregister()
         if not START:
             return "exit"
 
@@ -346,6 +361,8 @@ class Turn(State):
             goal = start_pose[1] - np.pi/2 * turn_direction
         elif self.angle == -100:  # target is goal + turn_direction * 270
             goal = start_pose[1] - 5*np.pi/9 * turn_direction
+        elif self.angle == 120:
+            goal = start_pose[1] + 2*np.pi/3 *turn_direction
 
         goal = angles_lib.normalize_angle(goal)
 
@@ -397,20 +414,19 @@ class DepthCount(State):
         self.count1_start_pub = rospy.Publisher('start1', Bool, queue_size=1)
 
     def execute(self, userdata):
-        # global START
+        global START
 
-        # self.count_start == False
-        # self.object_count = 0
-        # self.count_finished = False
+        self.count_start == False
+        self.object_count = 0
+        self.count_finished = False
 
+        self.count1_start_pub.publish(Bool(True))
+        count1_sub = rospy.Subscriber('count1', Int32, self.count_callback)
 
-        # self.count1_start_pub.publish(Bool(True))
-        # count1_sub = rospy.Subscriber('count1', Int32, self.count_callback)
+        while not rospy.is_shutdown() and START and not self.count_finished:
+            pass
 
-        # while not rospy.is_shutdown() and START and not self.count_finished:
-        #     pass
-
-        userdata.object_count = 2
+        userdata.object_count = self.object_count
         return "success"
 
         if not START:
@@ -670,13 +686,13 @@ def dr_callback(config, level):
     # white_min_s = config["white_min_s"]
     # white_min_v = config["white_min_v"]
 
-    # red_max_h = config["red_max_h"]
-    # red_max_s = config["red_max_s"]
-    # red_max_v = config["red_max_v"]
+    red_max_h = config["red_max_h"]
+    red_max_s = config["red_max_s"]
+    red_max_v = config["red_max_v"]
 
-    # red_min_h = config["red_min_h"]
-    # red_min_s = config["red_min_s"]
-    # red_min_v = config["red_min_v"]
+    red_min_h = config["red_min_h"]
+    red_min_s = config["red_min_s"]
+    red_min_v = config["red_min_v"]
 
     # red_area_threshold = config["red_area_threshold"]
     # red_timeout = rospy.Duration(config["red_timeout"])
@@ -882,11 +898,11 @@ if __name__ == "__main__":
 
     red_min_h = rospy.get_param("~red_min_h", 0)
     red_min_s = rospy.get_param("~red_min_s", 64.8)
-    red_min_v = rospy.get_param("~red_min_v", 216)
+    red_min_v = rospy.get_param("~red_min_v", 194)
 
-    red_timeout = rospy.Duration(rospy.get_param("~red_timeout", 1))
+    red_timeout = rospy.Duration(rospy.get_param("~red_timeout", 0.2))
 
-    red_area_threshold = rospy.get_param("~red_area_threshold", 20000)
+    red_area_threshold = rospy.get_param("~red_area_threshold", 40000)
 
     rospy.Subscriber("/joy", Joy, callback=joy_callback)
     srv = Server(Comp3Config, dr_callback)
@@ -894,12 +910,14 @@ if __name__ == "__main__":
     sm = StateMachine(outcomes=['success', 'failure'])
     with sm:
         StateMachine.add("Wait", WaitForButton(),
-                         transitions={'pressed': 'Phase1', 'exit': 'failure'})
+            transitions={'pressed': 'Phase1', 'exit': 'failure'})
+            # transitions={'pressed': 'Phase2', 'exit': 'failure'})
+                         
 
         StateMachine.add("Ending", FollowLine(),
                          transitions={"see_red": "Wait", "failure": "failure", "exit": "Wait", "see_nothing": "failure", "see_long_red": "failure"})
 
-        # Phase 1 sub state
+        # # Phase 1 sub state
         phase1_sm = StateMachine(outcomes=['success', 'failure', 'exit'])
         with phase1_sm:
             StateMachine.add("Finding1", FollowLine(), transitions={
@@ -963,11 +981,11 @@ if __name__ == "__main__":
                 "see_long_red": "MoveForward", "see_nothing": "failure", "see_red": "failure", "failure": "failure", "exit": "exit"
             })
 
-            StateMachine.add("MoveForward", Translate(), transitions={
+            StateMachine.add("MoveForward", Translate(distance=0.3, linear=0.2), transitions={
                 "success": "Turn41"
             })
 
-            StateMachine.add("Turn41", Turn(-30), transitions={
+            StateMachine.add("Turn41", Turn(120), transitions={
                 "success": "FollowRamp", "failure": "failure", "exit": "exit"
             })
 

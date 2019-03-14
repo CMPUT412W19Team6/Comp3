@@ -33,7 +33,7 @@ def image_callback(msg):
         cnts = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL,
                                 cv2.CHAIN_APPROX_SIMPLE)
         cnts = imutils.grab_contours(cnts)
-        areas = [c for c in cnts if cv2.contourArea(c) > 140]
+        areas = [c for c in cnts if cv2.contourArea(c) > 300]
         object_count = len(areas)
 
         count_pub.publish(Int32(object_count))
