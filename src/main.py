@@ -218,7 +218,7 @@ class FollowLine(State):
 
             r_timeout = red_timeout
             if self.phase=="2.2":
-                r_timeout = 1.5
+                r_timeout = rospy.Duration(1.5)
             if self.start_timeout and start_time + r_timeout < rospy.Time.now():
                 start_time = None
                 self.start_timeout = False
@@ -459,6 +459,9 @@ class DepthCount(State):
 
         while not rospy.is_shutdown() and START and not self.count_finished:
             pass
+
+        if self.object_count > 3:
+            self.object_count = 3
 
         userdata.object_count = self.object_count
         return "success"
