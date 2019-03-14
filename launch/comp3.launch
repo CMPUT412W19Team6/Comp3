@@ -4,7 +4,7 @@
     <arg name="simulation"                                  default="false"/>
     <arg name="joy"                                         default="true"/>
     <arg name="keyboard"                                    default="false"/>
-    <arg name="video_device"                                default="/dev/video1"/>
+    <arg name="video_device"                                default="/dev/video0"/>
     
     <arg name="gazebo_world_file_location"                  default="simulation/course.world"/>
     <arg name="rviz_mapping_configuration_file_location"    default="simulation/mapping.rviz"/>
@@ -160,6 +160,7 @@
         <node pkg="comp3" type="count1.py" name="count1" output="screen"/>
         <node pkg="comp3" type="findshape4.py" name="findshape4" output="screen"/>
         <node pkg="comp3" type="lineFollow.py" name="findshape2" output="screen"/>
+        <node pkg="comp3" type="recong5.py" name="recong5" output="screen"/>
 
         <node pkg="usb_cam" type="usb_cam_node" name="usb_cam" output="screen">
             <param name="video_device" value="$(arg video_device)"/>

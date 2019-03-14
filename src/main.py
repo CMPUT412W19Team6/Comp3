@@ -24,13 +24,13 @@ from std_msgs.msg import Bool, String, Int32
 import imutils
 from copy import deepcopy
 
-START = True    
+START = False    
 FORWARD_CURRENT = 0
 TURN_CURRENT = 0
 POSE = [0, 0, 0, 0]
 turn_direction = 1
 PHASE = None
-SHAPE = None
+SHAPE = "circle"
 SHAPE_MATCHED = False
 NUM_SHAPES = 0
 CURRENT_CHECKPOINT = 0
@@ -668,6 +668,47 @@ class CheckShape(State):
         if not START:
             return "exit"
 
+class CheckShape2(State):
+    """
+    determine if the RED pattern is the shape we see in phase 3
+    """
+
+    def __init__(self):
+        State.__init__(self, outcomes=["matched", "exit", "failure"])
+        self.start3_pub = rospy.Publisher("start5", Bool, queue_size=1)
+        self.shape3_sub = rospy.Subscriber(
+            "shape5", String, self.shapeCallback)
+
+        self.shape = None
+        self.got_shape = False
+
+    def shapeCallback(self, msg):
+
+        self.got_shape = True
+        print("GOT SHAPE=", msg.data)
+        self.shape = msg.data
+
+    def execute(self, userdata):
+        global START, SHAPE_MATCHED, SHAPE
+
+        self.start3_pub.publish(Bool(True))
+        self.got_shape = False
+        while not rospy.is_shutdown():
+            if self.got_shape:
+                break
+            rospy.Rate(10).sleep()
+
+        if self.shape == SHAPE:
+            SHAPE_MATCHED = True
+            return "matched"
+        elif NUM_SHAPES >= 3:
+            return "matched"
+
+        else:
+            print("failed?", self.shape)
+            return "failure"
+        if not START:
+            return "exit"
 
 class Signal3(State):
     """
@@ -690,9 +731,30 @@ class Signal3(State):
 
 
 def joy_callback(msg):
-    global START
+    global START, UNKNOWN_CHECKPOINT
 
-    if msg.buttons[0] == 1:  # button A
+    if msg.buttons[4] == 1: # LB
+        if msg.buttons[0]:
+            UNKNOWN_CHECKPOINT = 0
+        elif msg.buttons[1]:
+            UNKNOWN_CHECKPOINT = 1
+        elif msg.buttons[2]:
+            UNKNOWN_CHECKPOINT = 2
+        elif msg.buttons[3]:
+            UNKNOWN_CHECKPOINT = 3
+
+
+    elif msg.buttons[5] == 1: #RB
+        if msg.buttons[0]:
+            UNKNOWN_CHECKPOINT = 4
+        elif msg.buttons[1]:
+            UNKNOWN_CHECKPOINT = 5
+        elif msg.buttons[2]:
+            UNKNOWN_CHECKPOINT = 6
+        elif msg.buttons[3]:
+            UNKNOWN_CHECKPOINT = 7
+
+    elif msg.buttons[0] == 1:  # button A
         START = True
     elif msg.buttons[1] == 1:  # button B
         START = False
@@ -941,7 +1003,7 @@ if __name__ == "__main__":
     sm = StateMachine(outcomes=['success', 'failure'])
     with sm:
         StateMachine.add("Wait", WaitForButton(),
-            transitions={'pressed': 'Phase1', 'exit': 'failure'})
+            transitions={'pressed': 'Phase4', 'exit': 'failure'})
             # transitions={'pressed': 'Phase1', 'exit': 'failure'})
                          
 
@@ -976,7 +1038,7 @@ if __name__ == "__main__":
             StateMachine.add("TurnLeftAbit", Turn(-100), transitions={
                              "success": "Backup", "failure": "failure", "exit": "exit"})
             StateMachine.add("Backup", Translate(
-                distance=0.05, linear=-0.2), transitions={"success": "FindGreenShape"})
+                distance=0.05, linear=-0.2), transitions={"success": "FindGreenShape","failure": "failure", "exit": "exit"})
             StateMachine.add("FindGreenShape", FindGreen(), transitions={
                 "success": "TurnBack",  "failure": "failure", "exit": "exit"})
             StateMachine.add("TurnBack", Turn(90), transitions={
@@ -996,7 +1058,7 @@ if __name__ == "__main__":
                 "see_red": "Turn31", "failure": "failure", "exit": "exit", "see_nothing": "failure", "see_long_red": "failure"})
             StateMachine.add("Turn31", Turn(0), transitions={
                              "success": "CheckShape", "failure": "failure", "exit": "exit"})  # turn left 90
-            StateMachine.add("CheckShape", CheckShape(), transitions={
+            StateMachine.add("CheckShape", CheckShape2(), transitions={
                              "matched": "Signal3", "failure": "TurnRight", "exit": "exit"})
             StateMachine.add("Signal3", Signal3(), transitions={
                              "success": "TurnRight", "failure": "failure", "exit": "exit"})
@@ -1057,16 +1119,18 @@ if __name__ == "__main__":
         phase4_sm = StateMachine(outcomes=['success', 'failure', 'exit'])
 
         move_list = {
-            "point8": [Turn(90), MoveBaseGo(0.9), Turn(0), MoveBaseGo(0.1)],
-            "point5": [MoveBaseGo(0.3), Turn(90), MoveBaseGo(0.3)],
-            "point4": [Turn(180), MoveBaseGo(0.7), Turn(90)],
+            "point8": [Turn(90), MoveBaseGo(0.9), Turn(0)],
+            "point5": [MoveBaseGo(0.3), Turn(90), MoveBaseGo(0.2)],
+            "point4": [Turn(180), MoveBaseGo(0.75), Turn(90)],
             "point7": [Turn(180), MoveBaseGo(0.45), Turn(-90)], 
             "point6": [Turn(180), MoveBaseGo(0.7), Turn(-90)],
             "point3": [Turn(0), MoveBaseGo(0.4), Turn(90)],
             "point2": [Turn(180), MoveBaseGo(0.8), Turn(90) ],
             "point1": [Turn(180), MoveBaseGo(0.8), Turn(90)],
-            "exit":   [Turn(-90), MoveBaseGo(1.95)],
+            "exit":   [Turn(-90), MoveBaseGo(1.6), Turn(-90)],
         }
+
+        park_distance =       [0.35,       0.5,       0.5,     0.5 ,       0.5,       0.5,   0.5,      0.5,      0.5]
 
         checkpoint_sequence = ["point8", "point5", "point4", "point7", "point6", "point3", "point2", "point1", "exit"]
 
@@ -1080,7 +1144,7 @@ if __name__ == "__main__":
             #     "success": "Turn41",  "failure": "failure", "exit": "exit"
             # })
             # StateMachine.add("ForwardUntilWhite", Translate(),
-            #                             transitions={"success": "success"}) 
+            #                             transitions={"success": "success","failure": "failure", "exit": "exit"}) 
 
             # StateMachine.add("Turn41", Turn(135), transitions={
             #     "success": "FollowRamp", "failure": "failure", "exit": "exit"
@@ -1109,16 +1173,16 @@ if __name__ == "__main__":
                                 "see_shape": checkpoint_sequence[i] + "-" + "MatchShape", "see_AR": checkpoint_sequence[i] + "-" + "ParkAR", "close_to_random": checkpoint_sequence[i] + "-" + "ParkRandom", "find_nothing": next_state_name
                             })
 
-                            StateMachine.add(checkpoint_sequence[i] + "-" + "ParkAR", MoveBaseGo(0.35), transitions={
+                            StateMachine.add(checkpoint_sequence[i] + "-" + "ParkAR", MoveBaseGo(park_distance[i]), transitions={
                                 "success": checkpoint_sequence[i] + "-" + "SignalAR", "failure": "failure", "exit": "exit"
                             })
-                            StateMachine.add(checkpoint_sequence[i] + "-" + "ParkRandom", MoveBaseGo(0.35), transitions={
+                            StateMachine.add(checkpoint_sequence[i] + "-" + "ParkRandom", MoveBaseGo(park_distance[i]), transitions={
                                 "success": checkpoint_sequence[i] + "-" + "SignalRandom", "failure": "failure", "exit": "exit"
                             })
-                            StateMachine.add(checkpoint_sequence[i] + "-" + "ParkShape", MoveBaseGo(0.35), transitions={
+                            StateMachine.add(checkpoint_sequence[i] + "-" + "ParkShape", MoveBaseGo(park_distance[i]), transitions={
                                 "success": checkpoint_sequence[i] + "-" + "SignalShape", "failure": "failure", "exit": "exit"
                             })
-                            StateMachine.add(checkpoint_sequence[i] + "-" + "Moveback", MoveBaseGo(-0.35), transitions={
+                            StateMachine.add(checkpoint_sequence[i] + "-" + "Moveback", Translate(park_distance[i],-0.2), transitions={
                                 "success": next_state_name, "failure": "failure", "exit": "exit"
                             })
                             StateMachine.add(checkpoint_sequence[i] + "-" + "MatchShape", CheckShape(), transitions={
