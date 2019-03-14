@@ -218,7 +218,7 @@ class FollowLine(State):
 
             r_timeout = red_timeout
             if self.phase=="2.2":
-                r_timeout = rospy.Duration(1.5)
+                r_timeout = rospy.Duration(0)
             if self.start_timeout and start_time + r_timeout < rospy.Time.now():
                 start_time = None
                 self.start_timeout = False
@@ -1058,7 +1058,9 @@ if __name__ == "__main__":
             StateMachine.add("TurnBack", Turn(90), transitions={
                 "success": "MoveForward", "failure": "failure", "exit": "exit"})
             StateMachine.add("MoveForward", FollowLine("2.2"), transitions={
-                "see_red": "Turn22", "failure": "failure", "exit": "exit", "see_nothing": "failure", "see_long_red": "failure"})
+                "see_red": "MoveStraightToPoint", "failure": "failure", "exit": "exit", "see_nothing": "failure", "see_long_red": "failure"})
+            StateMachine.add("MoveStraightToPoint", Translate(0.15, 0.2), transitions={
+                "success": "Turn22","failure": "failure", "exit": "exit"})
             StateMachine.add("Turn22", Turn(90), transitions={
                 "success": "success", "failure": "failure", "exit": "exit"})  # turn left 90
         StateMachine.add("Phase2", phase2_sm, transitions={
