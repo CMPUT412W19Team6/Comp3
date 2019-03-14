@@ -368,7 +368,7 @@ class Turn(State):
         elif self.angle == 120:
             goal = start_pose[1] + 2*np.pi/3 *turn_direction
         elif self.angle == 135:
-            goal = start_pose[1] + 160*np.pi/180 * turn_direction
+            goal = start_pose[1] + 150*np.pi/180 * turn_direction
 
         goal = angles_lib.normalize_angle(goal)
 
@@ -1037,10 +1037,16 @@ if __name__ == "__main__":
         move_list = {
             "point8": [Turn(90), Translate(0.9, 0.2), Turn(0), Translate(0.43, 0.2)],
             "point5": [Turn(90), Translate(0.9, 0.2)],
-            "point4": [Turn(180), Translate(0.85, 0.2), Turn(90)]
+            "point4": [Turn(180), Translate(0.75, 0.2), Turn(90)],
+            "point7": [Turn(-90), Translate(1.3, 0.2)], 
+            "point6": [Turn(180), Translate(0.8, 0.2), Turn(-90)],
+            "point3": [Turn(0), Translate(0.4,0.2), Turn(90), Translate(1.3, 0.2)],
+            "point2": [Turn(180), Translate(0.85, 0.2), Turn(90) ],
+            "point1": [Turn(180), Translate(0.8,0.2), Turn(90)],
+            "exit":   [Turn(-90), Translate(1.95)],
         }
 
-        checkpoint_sequence = ["point8", "point5", "point4"]
+        checkpoint_sequence = ["point8", "point5", "point4", "point7", "point6", "point3", "point2", "point1", "exit"]
 
         with phase4_sm:
             i = 0
@@ -1048,7 +1054,7 @@ if __name__ == "__main__":
             StateMachine.add("Finding4", FollowLine("4.1"), transitions={	  
                 "see_long_red": "MoveForward", "see_nothing": "failure", "see_red": "failure", "failure": "failure", "exit": "exit"	
             })
-            StateMachine.add("MoveForward", Translate(distance=0.5, linear=0.2), transitions={
+            StateMachine.add("MoveForward", Translate(distance=0.65, linear=0.2), transitions={
                 "success": "Turn41",  "failure": "failure", "exit": "exit"
             })
             StateMachine.add("ForwardUntilWhite", Translate(),
@@ -1078,11 +1084,23 @@ if __name__ == "__main__":
                             })
 
                             StateMachine.add(checkpoint_sequence[i] + "-" + "ParkNext", ParkNext(), transitions={
-                                "see_shape": checkpoint_sequence[i] + "-" + "MatchShape", "see_AR": checkpoint_sequence[i] + "-" + "SignalAR", "close_to_random": checkpoint_sequence[i] + "-" + "SignalRandom", "find_nothing": next_state_name
+                                "see_shape": checkpoint_sequence[i] + "-" + "MatchShape", "see_AR": checkpoint_sequence[i] + "-" + "ParkAR", "close_to_random": checkpoint_sequence[i] + "-" + "ParkRandom", "find_nothing": next_state_name
                             })
 
+                            StateMachine.add(checkpoint_sequence[i] + "-" + "ParkAR", Translate(0.35, 0.2), transitions={
+                                "success": checkpoint_sequence[i] + "-" + "SignalAR", "failure": "failure", "exit": "exit"
+                            })
+                            StateMachine.add(checkpoint_sequence[i] + "-" + "ParkRandom", Translate(0.35, 0.2), transitions={
+                                "success": checkpoint_sequence[i] + "-" + "SignalRandom", "failure": "failure", "exit": "exit"
+                            })
+                            StateMachine.add(checkpoint_sequence[i] + "-" + "ParkShape", Translate(0.35, 0.2), transitions={
+                                "success": checkpoint_sequence[i] + "-" + "SignalShape", "failure": "failure", "exit": "exit"
+                            })
+                            StateMachine.add(checkpoint_sequence[i] + "-" + "Moveback", Translate(0.35, -0.2), transitions={
+                                "success": next_state_name, "failure": "failure", "exit": "exit"
+                            })
                             StateMachine.add(checkpoint_sequence[i] + "-" + "MatchShape", CheckShape(), transitions={
-                                            "matched": checkpoint_sequence[i] + "-" + "SignalShape", "failure": checkpoint_sequence[i] + "-" + "ParkNext", "exit": "exit"})
+                                            "matched": checkpoint_sequence[i] + "-" + "ParkShape", "failure": next_state_name, "exit": "exit"})
 
                             StateMachine.add(checkpoint_sequence[i] + "-" + "SignalAR", Signal4(True, 1), transitions={
                                             "done": checkpoint_sequence[i] + "-" + "CheckCompletion"})
@@ -1094,7 +1112,7 @@ if __name__ == "__main__":
                                             "done": checkpoint_sequence[i] + "-" + "CheckCompletion"})
 
                             StateMachine.add(checkpoint_sequence[i] + "-" + "CheckCompletion", CheckCompletion(), transitions={
-                                            "completed": "ForwardUntilWhite", "not_completed": next_state_name})
+                                            "completed": "ForwardUntilWhite", "not_completed": checkpoint_sequence[i] + "-" + "Moveback"})
                         elif i == len(checkpoint_sequence) -1: # last move of last point
                             
 
