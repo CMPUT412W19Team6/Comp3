@@ -164,12 +164,12 @@ class FollowLine(State):
                     thresh = 200
                 print(self.object_area)
                 if self.object_area < red_area_threshold and self.object_area > thresh:  # valid small red object in front
-                    self.start_timeout = True
-                elif self.object_area > red_area_threshold:  # valid large red object in front
                     if self.phase == "4.1":
-                        self.start_timeout = True
-                    else:
                         self.temporary_stop = True
+                    else:
+                        self.start_timeout = True
+                elif self.object_area > red_area_threshold:  # valid large red object in front
+                    self.temporary_stop = True
                 self.object_area = 0
             # elif PHASE == "2.1" and self.found_object:
             #     print(self.object_area)
@@ -178,7 +178,7 @@ class FollowLine(State):
             #         self.start_timeout = True
             #     self.object_area = 0
 
-        cv2.imshow("window", mask_red)
+        cv2.imshow("window", image)
         cv2.waitKey(3)
 
     def execute(self, userdata):
@@ -210,8 +210,12 @@ class FollowLine(State):
             if self.temporary_stop:
                 rospy.sleep(rospy.Duration(2.0))
                 self.temporary_stop = False
+                print("temp stoped")
+                if self.phase=="4.1":
+                    self.start_timeout = True
 
             if self.start_timeout and start_time is None:
+                print("?????")
                 start_time = rospy.Time.now()
 
             if self.start_timeout and start_time + red_timeout < rospy.Time.now():
@@ -363,6 +367,8 @@ class Turn(State):
             goal = start_pose[1] - 5*np.pi/9 * turn_direction
         elif self.angle == 120:
             goal = start_pose[1] + 2*np.pi/3 *turn_direction
+        elif self.angle == 135:
+            goal = start_pose[1] + 145*np.pi/180 * turn_direction
 
         goal = angles_lib.normalize_angle(goal)
 
@@ -910,8 +916,8 @@ if __name__ == "__main__":
     sm = StateMachine(outcomes=['success', 'failure'])
     with sm:
         StateMachine.add("Wait", WaitForButton(),
-            transitions={'pressed': 'Phase1', 'exit': 'failure'})
-            # transitions={'pressed': 'Phase2', 'exit': 'failure'})
+            transitions={'pressed': 'Phase4', 'exit': 'failure'})
+            # transitions={'pressed': 'Phase1', 'exit': 'failure'})
                          
 
         StateMachine.add("Ending", FollowLine(),
@@ -964,7 +970,7 @@ if __name__ == "__main__":
                 "see_red": "Turn31", "failure": "failure", "exit": "exit", "see_nothing": "failure", "see_long_red": "failure"})
             StateMachine.add("Turn31", Turn(0), transitions={
                              "success": "CheckShape", "failure": "failure", "exit": "exit"})  # turn left 90
-            StateMachine.add("CheckShape", CheckShape(), transitions={
+            StateMachine.add("C heckShape", CheckShape(), transitions={
                              "matched": "Signal3", "failure": "TurnRight", "exit": "exit"})
             StateMachine.add("Signal3", Signal3(), transitions={
                              "success": "TurnRight", "failure": "failure", "exit": "exit"})
@@ -981,11 +987,11 @@ if __name__ == "__main__":
                 "see_long_red": "MoveForward", "see_nothing": "failure", "see_red": "failure", "failure": "failure", "exit": "exit"
             })
 
-            StateMachine.add("MoveForward", Translate(distance=0.3, linear=0.2), transitions={
+            StateMachine.add("MoveForward", Translate(distance=0.5, linear=0.2), transitions={
                 "success": "Turn41"
             })
 
-            StateMachine.add("Turn41", Turn(120), transitions={
+            StateMachine.add("Turn41", Turn(135), transitions={
                 "success": "FollowRamp", "failure": "failure", "exit": "exit"
             })
 
