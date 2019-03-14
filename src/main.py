@@ -368,7 +368,7 @@ class Turn(State):
         elif self.angle == 120:
             goal = start_pose[1] + 2*np.pi/3 *turn_direction
         elif self.angle == 135:
-            goal = start_pose[1] + 155*np.pi/180 * turn_direction
+            goal = start_pose[1] + 160*np.pi/180 * turn_direction
 
         goal = angles_lib.normalize_angle(goal)
 
