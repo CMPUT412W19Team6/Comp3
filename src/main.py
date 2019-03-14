@@ -1017,7 +1017,7 @@ if __name__ == "__main__":
     sm = StateMachine(outcomes=['success', 'failure'])
     with sm:
         StateMachine.add("Wait", WaitForButton(),
-            transitions={'pressed': 'Phase4', 'exit': 'failure'})
+            transitions={'pressed': 'Phase3', 'exit': 'failure'})
             # transitions={'pressed': 'Phase1', 'exit': 'failure'})
                          
 
@@ -1073,11 +1073,15 @@ if __name__ == "__main__":
             StateMachine.add("Finding3", FollowLine("3.1"), transitions={
                 "see_red": "Turn31", "failure": "failure", "exit": "exit", "see_nothing": "failure", "see_long_red": "failure"})
             StateMachine.add("Turn31", Turn(0), transitions={
-                             "success": "CheckShape", "failure": "failure", "exit": "exit"})  # turn left 90
+                             "success": "BackupALittle", "failure": "failure", "exit": "exit"})  # turn left 90
+            StateMachine.add("BackupALittle", Translate(0.10, -0.2), transitions={
+                "success": "CheckShape","failure": "failure", "exit": "exit"})
             StateMachine.add("CheckShape", CheckShape2(), transitions={
-                             "matched": "Signal3", "failure": "TurnRight", "exit": "exit"})
+                             "matched": "Signal3", "failure": "ForwardALittle", "exit": "exit"})
             StateMachine.add("Signal3", Signal3(), transitions={
-                             "success": "TurnRight", "failure": "failure", "exit": "exit"})
+                             "success": "ForwardALittle", "failure": "failure", "exit": "exit"})
+            StateMachine.add("ForwardALittle", Translate(0.10, 20.2), transitions={
+                "success": "TurnRight","failure": "failure", "exit": "exit"})
             StateMachine.add("TurnRight", Turn(-90), transitions={
                              "success": "Finding3", "failure": "failure", "exit": "exit"})
 
@@ -1137,9 +1141,9 @@ if __name__ == "__main__":
         move_list = {
             "point8": [Turn(90), MoveBaseGo(1.2), Turn(0)],
             "point5": [MoveBaseGo(0.25), Turn(90), MoveBaseGo(0.2), Turn(90)],
-            "point4": [Turn(180), MoveBaseGo(0.75), Turn(90)],
+            "point4": [Turn(180), MoveBaseGo(0.80), Turn(90)],
             "point7": [Turn(180), MoveBaseGo(0.45), Turn(-90)], 
-            "point6": [Turn(180), MoveBaseGo(0.7), Turn(-90)],
+            "point6": [Turn(180), MoveBaseGo(0.75), Turn(-90)],
             "point3": [Turn(0), MoveBaseGo(0.4), Turn(90)],
             "point2": [Turn(180), MoveBaseGo(0.8), Turn(90) ],
             "point1": [Turn(180), MoveBaseGo(0.8), Turn(90)],
@@ -1153,20 +1157,20 @@ if __name__ == "__main__":
         with phase4_sm:
             i = 0
 
-            StateMachine.add("Finding4", FollowLine("4.1"), transitions={	  
-                "see_long_red": "MoveForward", "see_nothing": "failure", "see_red": "failure", "failure": "failure", "exit": "exit"	
-            })
-            StateMachine.add("MoveForward", Translate(distance=0.65, linear=0.2), transitions={
-                "success": "Turn41",  "failure": "failure", "exit": "exit"
-            })
+            # StateMachine.add("Finding4", FollowLine("4.1"), transitions={	  
+            #     "see_long_red": "MoveForward", "see_nothing": "failure", "see_red": "failure", "failure": "failure", "exit": "exit"	
+            # })
+            # StateMachine.add("MoveForward", Translate(distance=0.65, linear=0.2), transitions={
+            #     "success": "Turn41",  "failure": "failure", "exit": "exit"
+            # })
 
-            StateMachine.add("Turn41", Turn(135), transitions={
-                "success": "FollowRamp", "failure": "failure", "exit": "exit"
-            })
+            # StateMachine.add("Turn41", Turn(135), transitions={
+            #     "success": "FollowRamp", "failure": "failure", "exit": "exit"
+            # })
 
-            StateMachine.add("FollowRamp", FollowLine("4.2"), transitions={
-                "see_nothing": checkpoint_sequence[0] + "-0", "see_long_red": "failure", "see_red": "failure", "failure": "failure", "exit": "exit"
-            })
+            # StateMachine.add("FollowRamp", FollowLine("4.2"), transitions={
+            #     "see_nothing": checkpoint_sequence[0] + "-0", "see_long_red": "failure", "see_red": "failure", "failure": "failure", "exit": "exit"
+            # })
 
             for i in xrange(len(checkpoint_sequence)):
                 moves_to_point = move_list[checkpoint_sequence[i]]
