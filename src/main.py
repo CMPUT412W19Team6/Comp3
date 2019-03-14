@@ -22,6 +22,7 @@ import math
 import random
 from std_msgs.msg import Bool, String, Int32
 import imutils
+from copy import deepcopy
 
 START = True    
 FORWARD_CURRENT = 0
@@ -80,9 +81,7 @@ class FollowLine(State):
         self.temporary_stop = False
         self.image_received = False
         self.white_line_ended = False
-        self.cx = None
-        self.cy = None
-        self.w = None
+        self.image = None
         self.object_area = 0
         self.dt = 1.0 / 20.0
 
@@ -90,96 +89,8 @@ class FollowLine(State):
         self.find_green = msg.data
 
     def image_callback(self, msg):
-        if not self.image_received:
-            self.image_received = True
-
-        global RED_VISIBLE, PHASE, red_area_threshold, white_max_h, white_max_s, white_max_v, white_min_h, white_min_s, white_min_v, red_max_h, red_max_s, red_max_v, red_min_h, red_min_s, red_min_v
-
-        image = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
-        hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV_FULL)
-
-        lower_white = np.array([white_min_h, white_min_s, white_min_v])
-        upper_white = np.array([white_max_h, white_max_s, white_max_v])
-
-        mask = cv2.inRange(hsv, lower_white, upper_white)
-
-        hsv2 = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
-
-        lower_red = np.array([red_min_h,  red_min_s,  red_min_v])
-        upper_red = np.array([red_max_h, red_max_s, red_max_v])
-
-        mask_red = cv2.inRange(hsv2, lower_red, upper_red)
-
-        lower_green = np.array([108, 68, 100])
-        upper_green = np.array([200, 255, 255])
-        mask_green = cv2.inRange(hsv, lower_green, upper_green)
-
-        h, w, d = image.shape
-        self.w = w
-        search_top = 3*h/4
-        search_bot = 3*h/4 + 20
-
-        mask[0:search_top, 0:w] = 0
-        mask[search_bot:h, 0:w] = 0
-        M = cv2.moments(mask)
-
-        if M['m00'] > 0:
-            cx = int(M['m10']/M['m00'])
-            cy = int(M['m01']/M['m00'])
-            self.cx = cx
-            self.cy = cy
-            cv2.circle(image, (cx, cy), 20, (0, 0, 255), -1)
-
-        if self.phase == "4.2" and M['m00'] == 0:  # no more white line ahead
-            self.start_timeout = True
-        elif self.phase == "2.1":
-            if self.find_green and M['m00'] == 0:
-                self.start_timeout = True
-        elif self.phase != "4.2":
-            max_area = 0
-            # if self.phase == "2.1":  # calculate sum of area of contours of red and green shapes
-            #     mask_red[h/2:h, 0:w] = 0
-
-            #     im2, contours, hierarchy = cv2.findContours(
-            #         mask_green, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-            #     # total_area += sum([cv2.contourArea(x) for x in contours])
-
-            # else:  # calculate sum of area of contours of red tapes
-            # mask_red[0:search_top, 0:w] = 0
-            im2, contours, hierarchy = cv2.findContours(
-                mask_red, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-                # total_area = sum([cv2.contourArea(x) for x in contours])
-            contours = [x for x in contours if cv2.contourArea(x) > 10]
-
-            if len(contours) > 0:  # Keep the maximum sum of area of red/green objects since first detection
-                self.found_object = True
-                max_area = max([cv2.contourArea(x) for x in contours])
-                self.object_area = max(self.object_area, max_area)
-
-            # red objects no more visible since last detection
-            if len(contours) == 0 and self.found_object:
-                self.found_object = False
-                thresh = 1000
-                if self.phase=="2.2":
-                    thresh = 200
-                print(self.object_area)
-                if self.object_area < red_area_threshold and self.object_area > thresh:  # valid small red object in front
-                    if self.phase == "4.1":
-                        self.temporary_stop = True
-                    else:
-                        self.start_timeout = True
-                elif self.object_area > red_area_threshold:  # valid large red object in front
-                    self.temporary_stop = True
-                self.object_area = 0
-            # elif PHASE == "2.1" and self.found_object:
-            #     print(self.object_area)
-            #     self.found_object = False
-            #     if self.object_area > 800:
-            #         self.start_timeout = True
-            #     self.object_area = 0
-
-        cv2.imshow("window", image)
-        cv2.waitKey(3)
+        self.image = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
+        
 
     def execute(self, userdata):
         global RED_VISIBLE, PHASE, FORWARD_CURRENT, TURN_CURRENT, linear_vel, red_timeout, Kp, Kd, Ki
@@ -191,21 +102,105 @@ class FollowLine(State):
         PHASE = self.phase
 
         self.reset()
-
         start_time = None
 
-        if self.phase == "2.1":
-            self.green_start_pub.publish(Bool(True))
-        # if self.phase == "2.1":
-        #     Kp = 1.0 / 350.0
-        #     Kd = 1.0 / 700.0
-        # else:
-        #     Kp = 1.0 / 400.0
-        #     Kd = 1.0 / 700.0
-
         while not rospy.is_shutdown() and START:
-            # if not self.image_received:
-            #     continue
+            if self.image is None:
+                continue
+
+            image = deepcopy(self.image)
+            hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV_FULL)
+
+            lower_white = np.array([white_min_h, white_min_s, white_min_v])
+            upper_white = np.array([white_max_h, white_max_s, white_max_v])
+
+            mask = cv2.inRange(hsv, lower_white, upper_white)
+
+            hsv2 = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+
+            lower_red = np.array([red_min_h,  red_min_s,  red_min_v])
+            upper_red = np.array([red_max_h, red_max_s, red_max_v])
+
+            mask_red = cv2.inRange(hsv2, lower_red, upper_red)
+
+            lower_green = np.array([108, 68, 100])
+            upper_green = np.array([200, 255, 255])
+            mask_green = cv2.inRange(hsv, lower_green, upper_green)
+
+            cx = cy = w = None
+            h, w, d = image.shape
+            search_top = 3*h/4
+            search_bot = 3*h/4 + 20
+
+            mask[0:search_top, 0:w] = 0
+            mask[search_bot:h, 0:w] = 0
+            M = cv2.moments(mask)
+
+            if M['m00'] > 0:
+                cx = int(M['m10']/M['m00'])
+                cy = int(M['m01']/M['m00'])
+                cv2.circle(image, (cx, cy), 20, (0, 0, 255), -1)
+
+            if self.phase == "4.2" and M['m00'] == 0:  # no more white line ahead
+                self.start_timeout = True
+            elif self.phase == "2.1":
+                if self.find_green and M['m00'] == 0:
+                    self.start_timeout = True
+            elif self.phase != "4.2":
+                max_area = 0
+                # if self.phase == "2.1":  # calculate sum of area of contours of red and green shapes
+                #     mask_red[h/2:h, 0:w] = 0
+
+                #     im2, contours, hierarchy = cv2.findContours(
+                #         mask_green, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+                #     # total_area += sum([cv2.contourArea(x) for x in contours])
+
+                # else:  # calculate sum of area of contours of red tapes
+                # mask_red[0:search_top, 0:w] = 0
+                im2, contours, hierarchy = cv2.findContours(
+                    mask_red, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+                    # total_area = sum([cv2.contourArea(x) for x in contours])
+                contours = [x for x in contours if cv2.contourArea(x) > 10]
+
+                if len(contours) > 0:  # Keep the maximum sum of area of red/green objects since first detection
+                    self.found_object = True
+                    max_area = max([cv2.contourArea(x) for x in contours])
+                    self.object_area = max(self.object_area, max_area)
+
+                # red objects no more visible since last detection
+                if len(contours) == 0 and self.found_object:
+                    self.found_object = False
+                    thresh = 1000
+                    if self.phase=="2.2":
+                        thresh = 200
+                    print(self.object_area)
+                    if self.object_area < red_area_threshold and self.object_area > thresh:  # valid small red object in front
+                        if self.phase == "4.1":
+                            self.temporary_stop = True
+                        else:
+                            self.start_timeout = True
+                    elif self.object_area > red_area_threshold:  # valid large red object in front
+                        self.temporary_stop = True
+                    self.object_area = 0
+                # elif PHASE == "2.1" and self.found_object:
+                #     print(self.object_area)
+                #     self.found_object = False
+                #     if self.object_area > 800:
+                #         self.start_timeout = True
+                #     self.object_area = 0
+
+            cv2.imshow("window", image)
+            cv2.waitKey(3)
+
+            if self.phase == "2.1":
+                self.green_start_pub.publish(Bool(True))
+            # if self.phase == "2.1":
+            #     Kp = 1.0 / 350.0
+            #     Kd = 1.0 / 700.0
+            # else:
+            #     Kp = 1.0 / 400.0
+            #     Kd = 1.0 / 700.0
+
 
             if self.temporary_stop:
                 rospy.sleep(rospy.Duration(2.0))
@@ -234,8 +229,8 @@ class FollowLine(State):
                     return "see_red"
 
             # BEGIN CONTROL
-            if self.cx is not None and self.w is not None:
-                error = float(self.cx - self.w/2.0)
+            if cx is not None and w is not None:
+                error = float(cx - w/2.0)
                 integral += error * self.dt
                 derivative = (error - previous_error) / self.dt
 
@@ -936,7 +931,7 @@ if __name__ == "__main__":
     red_min_s = rospy.get_param("~red_min_s", 64.8)
     red_min_v = rospy.get_param("~red_min_v", 194)
 
-    red_timeout = rospy.Duration(rospy.get_param("~red_timeout", 0.2))
+    red_timeout = rospy.Duration(rospy.get_param("~red_timeout", 1.0))
 
     red_area_threshold = rospy.get_param("~red_area_threshold", 40000)
 
@@ -946,7 +941,7 @@ if __name__ == "__main__":
     sm = StateMachine(outcomes=['success', 'failure'])
     with sm:
         StateMachine.add("Wait", WaitForButton(),
-            transitions={'pressed': 'Phase4', 'exit': 'failure'})
+            transitions={'pressed': 'Phase1', 'exit': 'failure'})
             # transitions={'pressed': 'Phase1', 'exit': 'failure'})
                          
 
