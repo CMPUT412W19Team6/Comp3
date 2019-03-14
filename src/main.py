@@ -936,8 +936,9 @@ class Signal4(State):
         return "done"
 
 class CheckCompletion(State):
-    def __init__(self):
-        State.__init__(self, outcomes=["completed", "not_completed"])
+    def __init__(self, backup=True):
+        State.__init__(self, outcomes=["completed", "not_completed", "next"])
+        self.backup = backup
 
     def execute(self, userdata):
         global PHASE4_TASK_COMPLETED, CURRENT_CHECKPOINT
@@ -945,11 +946,15 @@ class CheckCompletion(State):
         if START and not rospy.is_shutdown():
             PHASE4_TASK_COMPLETED += 1
 
-            if PHASE4_TASK_COMPLETED == 3 or CURRENT_CHECKPOINT == 7:
+            if CURRENT_CHECKPOINT == 8:
                 return "completed"
             else:
                 CURRENT_CHECKPOINT += 1
-                return "not_completed"
+
+                if self.backup:
+                    return "not_completed"
+                else:
+                    return "next"
 
 
 class ParkAtExit(State):
@@ -1137,22 +1142,20 @@ if __name__ == "__main__":
         with phase4_sm:
             i = 0
 
-            # StateMachine.add("Finding4", FollowLine("4.1"), transitions={	  
-            #     "see_long_red": "MoveForward", "see_nothing": "failure", "see_red": "failure", "failure": "failure", "exit": "exit"	
-            # })
-            # StateMachine.add("MoveForward", Translate(distance=0.65, linear=0.2), transitions={
-            #     "success": "Turn41",  "failure": "failure", "exit": "exit"
-            # })
-            # StateMachine.add("ForwardUntilWhite", Translate(),
-            #                             transitions={"success": "success","failure": "failure", "exit": "exit"}) 
+            StateMachine.add("Finding4", FollowLine("4.1"), transitions={	  
+                "see_long_red": "MoveForward", "see_nothing": "failure", "see_red": "failure", "failure": "failure", "exit": "exit"	
+            })
+            StateMachine.add("MoveForward", Translate(distance=0.65, linear=0.2), transitions={
+                "success": "Turn41",  "failure": "failure", "exit": "exit"
+            })
 
-            # StateMachine.add("Turn41", Turn(135), transitions={
-            #     "success": "FollowRamp", "failure": "failure", "exit": "exit"
-            # })
+            StateMachine.add("Turn41", Turn(135), transitions={
+                "success": "FollowRamp", "failure": "failure", "exit": "exit"
+            })
 
-            # StateMachine.add("FollowRamp", FollowLine("4.2"), transitions={
-            #     "see_nothing": checkpoint_sequence[0] + "-0", "see_long_red": "failure", "see_red": "failure", "failure": "failure", "exit": "exit"
-            # })
+            StateMachine.add("FollowRamp", FollowLine("4.2"), transitions={
+                "see_nothing": checkpoint_sequence[0] + "-0", "see_long_red": "failure", "see_red": "failure", "failure": "failure", "exit": "exit"
+            })
 
             for i in xrange(len(checkpoint_sequence)):
                 moves_to_point = move_list[checkpoint_sequence[i]]
@@ -1170,7 +1173,7 @@ if __name__ == "__main__":
                             })
 
                             StateMachine.add(checkpoint_sequence[i] + "-" + "ParkNext", ParkNext(), transitions={
-                                "see_shape": checkpoint_sequence[i] + "-" + "MatchShape", "see_AR": checkpoint_sequence[i] + "-" + "ParkAR", "close_to_random": checkpoint_sequence[i] + "-" + "ParkRandom", "find_nothing": next_state_name
+                                "see_shape": checkpoint_sequence[i] + "-" + "MatchShape", "see_AR": checkpoint_sequence[i] + "-" + "ParkAR", "close_to_random": checkpoint_sequence[i] + "-" + "ParkRandom", "find_nothing": checkpoint_sequence[i] + "-" + "CheckCompletionNoBackup"
                             })
 
                             StateMachine.add(checkpoint_sequence[i] + "-" + "ParkAR", MoveBaseGo(park_distance[i]), transitions={
@@ -1186,7 +1189,7 @@ if __name__ == "__main__":
                                 "success": next_state_name, "failure": "failure", "exit": "exit"
                             })
                             StateMachine.add(checkpoint_sequence[i] + "-" + "MatchShape", CheckShape(), transitions={
-                                            "matched": checkpoint_sequence[i] + "-" + "ParkShape", "failure": next_state_name, "exit": "exit"})
+                                            "matched": checkpoint_sequence[i] + "-" + "ParkShape", "failure": checkpoint_sequence[i] + "-" + "CheckCompletionNoBackup", "exit": "exit"})
 
                             StateMachine.add(checkpoint_sequence[i] + "-" + "SignalAR", Signal4(True, 1), transitions={
                                             "done": checkpoint_sequence[i] + "-" + "CheckCompletion"})
@@ -1198,12 +1201,13 @@ if __name__ == "__main__":
                                             "done": checkpoint_sequence[i] + "-" + "CheckCompletion"})
 
                             StateMachine.add(checkpoint_sequence[i] + "-" + "CheckCompletion", CheckCompletion(), transitions={
-                                            "completed": "ForwardUntilWhite", "not_completed": checkpoint_sequence[i] + "-" + "Moveback"})
-                        elif i == len(checkpoint_sequence) -1: # last move of last point
-                            
+                                            "completed": next_state_name, "not_completed": checkpoint_sequence[i] + "-" + "Moveback", "next": next_state_name})
 
+                            StateMachine.add(checkpoint_sequence[i] + "-" + "CheckCompletionNoBackup", CheckCompletion(False), transitions={
+                                            "completed": next_state_name, "not_completed": checkpoint_sequence[i] + "-" + "Moveback", "next": next_state_name})
+                        elif i == len(checkpoint_sequence) -1: # last move of last point
                             StateMachine.add(name, moves_to_point[j], transitions={
-                                "success": "ForwardUntilWhite", "failure": "failure", "exit": "exit"
+                                "success": "success", "failure": "failure", "exit": "exit"
                             })
                     elif j < len(moves_to_point) - 1:
                         next_state_name = checkpoint_sequence[i] + "-" + str(j + 1)
