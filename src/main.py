@@ -1042,7 +1042,7 @@ if __name__ == "__main__":
             i = 0
 
             StateMachine.add("MoveForward", Translate(distance=0.5, linear=0.2), transitions={
-                "success": "Turn41"
+                "success": "Turn41",  "failure": "failure", "exit": "exit"
             })
             StateMachine.add("ForwardUntilWhite", Translate(),
                                         transitions={"success": "success"}) 
