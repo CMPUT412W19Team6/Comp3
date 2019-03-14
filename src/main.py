@@ -157,6 +157,9 @@ class FollowLine(State):
 
                 # else:  # calculate sum of area of contours of red tapes
                 # mask_red[0:search_top, 0:w] = 0
+                if self.phase == "3.1":
+                    mask_red[0:h/2, 0:w] = 0
+
                 im2, contours, hierarchy = cv2.findContours(
                     mask_red, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
                     # total_area = sum([cv2.contourArea(x) for x in contours])
@@ -172,7 +175,7 @@ class FollowLine(State):
                     self.found_object = False
                     thresh = 1000
                     if self.phase=="2.2":
-                        thresh = 200
+                        thresh = 1000
                     print(self.object_area)
                     if self.object_area < red_area_threshold and self.object_area > thresh:  # valid small red object in front
                         if self.phase == "4.1":
@@ -189,7 +192,7 @@ class FollowLine(State):
                 #         self.start_timeout = True
                 #     self.object_area = 0
 
-            cv2.imshow("window", image)
+            cv2.imshow("window", mask_red)
             cv2.waitKey(3)
 
             if self.phase == "2.1":
@@ -213,7 +216,10 @@ class FollowLine(State):
                 print("?????")
                 start_time = rospy.Time.now()
 
-            if self.start_timeout and start_time + red_timeout < rospy.Time.now():
+            r_timeout = red_timeout
+            if self.phase=="2.2":
+                r_timeout = 1.5
+            if self.start_timeout and start_time + r_timeout < rospy.Time.now():
                 start_time = None
                 self.start_timeout = False
                 # image_sub.unregister()
@@ -977,10 +983,10 @@ class ParkAtExit(State):
 if __name__ == "__main__":
     rospy.init_node('comp3')
 
-    Kp = rospy.get_param("~Kp", 1.0 / 400.0)
+    Kp = rospy.get_param("~Kp", 1.0 / 300.0)
     Kd = rospy.get_param("~Kd", 1.0 / 700.0)
     Ki = rospy.get_param("~Ki", 0)
-    linear_vel = rospy.get_param("~linear_vel", 0.2)
+    linear_vel = rospy.get_param("~linear_vel", 0.3)
 
     white_max_h = rospy.get_param("~white_max_h", 255)
     white_max_s = rospy.get_param("~white_max_s", 72)
@@ -1000,7 +1006,7 @@ if __name__ == "__main__":
 
     red_timeout = rospy.Duration(rospy.get_param("~red_timeout", 1.0))
 
-    red_area_threshold = rospy.get_param("~red_area_threshold", 40000)
+    red_area_threshold = rospy.get_param("~red_area_threshold", 25000)
 
     rospy.Subscriber("/joy", Joy, callback=joy_callback)
     srv = Server(Comp3Config, dr_callback)
@@ -1008,7 +1014,7 @@ if __name__ == "__main__":
     sm = StateMachine(outcomes=['success', 'failure'])
     with sm:
         StateMachine.add("Wait", WaitForButton(),
-            transitions={'pressed': 'Phase4', 'exit': 'failure'})
+            transitions={'pressed': 'Phase1', 'exit': 'failure'})
             # transitions={'pressed': 'Phase1', 'exit': 'failure'})
                          
 
@@ -1124,8 +1130,8 @@ if __name__ == "__main__":
         phase4_sm = StateMachine(outcomes=['success', 'failure', 'exit'])
 
         move_list = {
-            "point8": [Turn(90), MoveBaseGo(0.9), Turn(0)],
-            "point5": [MoveBaseGo(0.3), Turn(90), MoveBaseGo(0.2)],
+            "point8": [Turn(90), MoveBaseGo(1.1), Turn(0)],
+            "point5": [MoveBaseGo(0.25), Turn(90), MoveBaseGo(0.2)],
             "point4": [Turn(180), MoveBaseGo(0.75), Turn(90)],
             "point7": [Turn(180), MoveBaseGo(0.45), Turn(-90)], 
             "point6": [Turn(180), MoveBaseGo(0.7), Turn(-90)],
@@ -1135,7 +1141,7 @@ if __name__ == "__main__":
             "exit":   [Turn(-90), MoveBaseGo(1.6), Turn(-90)],
         }
 
-        park_distance =       [0.35,       0.5,       0.5,     0.5 ,       0.5,       0.5,   0.5,      0.5,      0.5]
+        park_distance =       [0.3,       0.5,       0.5,     0.5 ,       0.5,       0.5,   0.5,      0.5,      0.5]
 
         checkpoint_sequence = ["point8", "point5", "point4", "point7", "point6", "point3", "point2", "point1", "exit"]
 
