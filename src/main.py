@@ -23,7 +23,7 @@ import random
 from std_msgs.msg import Bool, String, Int32
 import imutils
 
-START = True
+START = False
 FORWARD_CURRENT = 0
 TURN_CURRENT = 0
 POSE = [0, 0, 0, 0]
@@ -277,7 +277,7 @@ class Translate(State):
     def __init__(self, distance=0.15, linear=-0.2):
         State.__init__(self, outcomes=["success", "exit", 'failure'])
         self.tb_position = None
-        self.tb_rot = None
+        self.tb_rot = [0,0,0,0]
         self.distance = distance
         self.COLLISION = False
         self.linear = linear
@@ -368,7 +368,7 @@ class Turn(State):
         elif self.angle == 120:
             goal = start_pose[1] + 2*np.pi/3 *turn_direction
         elif self.angle == 135:
-            goal = start_pose[1] + 145*np.pi/180 * turn_direction
+            goal = start_pose[1] + 155*np.pi/180 * turn_direction
 
         goal = angles_lib.normalize_angle(goal)
 
@@ -787,8 +787,8 @@ class ParkNext(State):
         if not rospy.is_shutdown() and START:
             while not self.marker_data_received:
                 continue
-            result = self.move_base_client.send_goal_and_wait(
-                self.checkpoint_list[CURRENT_CHECKPOINT])
+            # result = self.move_base_client.send_goal_and_wait(
+            #     self.checkpoint_list[CURRENT_CHECKPOINT])
 
             if CURRENT_CHECKPOINT == UNKNOWN_CHECKPOINT:
                 marker_sub.unregister()
@@ -831,6 +831,8 @@ class Signal4(State):
         self.sound_pub = rospy.Publisher(
             '/mobile_base/commands/sound', Sound, queue_size=1)
 
+        
+
     def execute(self, userdata):
         pass
 
@@ -847,6 +849,7 @@ class Signal4(State):
         if self.led2:
             self.led2_pub.publish(0)
 
+        return "done"
 
 class CheckCompletion(State):
     def __init__(self):
@@ -966,6 +969,7 @@ if __name__ == "__main__":
         # Phase 3 sub state
         phase3_sm = StateMachine(outcomes=['success', 'failure', 'exit'])
         with phase3_sm:
+            
             StateMachine.add("Finding3", FollowLine("3.1"), transitions={
                 "see_red": "Turn31", "failure": "failure", "exit": "exit", "see_nothing": "failure", "see_long_red": "failure"})
             StateMachine.add("Turn31", Turn(0), transitions={
@@ -1031,9 +1035,9 @@ if __name__ == "__main__":
         phase4_sm = StateMachine(outcomes=['success', 'failure', 'exit'])
 
         move_list = {
-            "point8": [Turn(90), Translate(0.5, 0.2), Turn(0), Translate(0.3, 0.2)],
-            "point5": [Turn(90), Translate(0.5, 0.2), Turn(0), Translate(0.3, 0.2)],
-            "point4": [Turn(180), Translate(0.5, 0.2), Turn(90), Translate(0.3, 0.2)]
+            "point8": [Turn(90), Translate(0.9, 0.2), Turn(0), Translate(0.43, 0.2)],
+            "point5": [Turn(90), Translate(0.9, 0.2)],
+            "point4": [Turn(180), Translate(0.85, 0.2), Turn(90)]
         }
 
         checkpoint_sequence = ["point8", "point5", "point4"]
@@ -1041,6 +1045,9 @@ if __name__ == "__main__":
         with phase4_sm:
             i = 0
 
+            StateMachine.add("Finding4", FollowLine("4.1"), transitions={	  
+                "see_long_red": "MoveForward", "see_nothing": "failure", "see_red": "failure", "failure": "failure", "exit": "exit"	
+            })
             StateMachine.add("MoveForward", Translate(distance=0.5, linear=0.2), transitions={
                 "success": "Turn41",  "failure": "failure", "exit": "exit"
             })
