@@ -12,7 +12,7 @@ from geometry_msgs.msg import Twist, Pose, PoseStamped, PointStamped
 from nav_msgs.msg import Odometry
 from kobuki_msgs.msg import BumperEvent, Sound, Led
 from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
-from tf.transformations import decompose_matrix, compose_matrix
+from tf.transformations import decompose_matrix, compose_matrix, quaternion_from_euler
 from ros_numpy import numpify
 import actionlib
 from sensor_msgs.msg import Joy, LaserScan, Image
@@ -23,7 +23,7 @@ import random
 from std_msgs.msg import Bool, String, Int32
 import imutils
 
-START = False
+START = True
 FORWARD_CURRENT = 0
 TURN_CURRENT = 0
 POSE = [0, 0, 0, 0]
@@ -271,6 +271,33 @@ def check_forward_distance(forward_vec, start_pos, current_pos):
         np.dot(forward_vec, forward_vec) * forward_vec
     dist = np.sqrt(delta.dot(delta))
     return dist
+
+
+class MoveBaseGo(State):
+    def __init__(self, distance = 0, yaw = 0):
+        State.__init__(self, outcomes=["success", "exit", 'failure'])
+        self.distance = distance
+        self.yaw = yaw
+        self.move_base_client = actionlib.SimpleActionClient(
+            "move_base", MoveBaseAction)
+
+    def execute(self, userdata):
+        if START and not rospy.is_shutdown():
+
+            quaternion = quaternion_from_euler(0, 0, self.yaw)
+
+            goal = MoveBaseGoal()
+            goal.target_pose.header.frame_id = "base_footprint"
+            goal.target_pose.pose.position.x = self.distance
+            goal.target_pose.pose.position.y = 0
+            goal.target_pose.pose.orientation.x = quaternion[0]
+            goal.target_pose.pose.orientation.y = quaternion[1]
+            goal.target_pose.pose.orientation.z = quaternion[2]
+            goal.target_pose.pose.orientation.w = quaternion[3]
+            
+            self.move_base_client.send_goal_and_wait(goal)
+
+            return "success"
 
 
 class Translate(State):
@@ -1060,13 +1087,13 @@ if __name__ == "__main__":
             StateMachine.add("ForwardUntilWhite", Translate(),
                                         transitions={"success": "success"}) 
 
-            StateMachine.add("Turn41", Turn(135), transitions={
-                "success": "FollowRamp", "failure": "failure", "exit": "exit"
-            })
+            # StateMachine.add("Turn41", Turn(135), transitions={
+            #     "success": "FollowRamp", "failure": "failure", "exit": "exit"
+            # })
 
-            StateMachine.add("FollowRamp", FollowLine("4.2"), transitions={
-                "see_nothing": checkpoint_sequence[0] + "-0", "see_long_red": "failure", "see_red": "failure", "failure": "failure", "exit": "exit"
-            })
+            # StateMachine.add("FollowRamp", FollowLine("4.2"), transitions={
+            #     "see_nothing": checkpoint_sequence[0] + "-0", "see_long_red": "failure", "see_red": "failure", "failure": "failure", "exit": "exit"
+            # })
 
             for i in xrange(len(checkpoint_sequence)):
                 moves_to_point = move_list[checkpoint_sequence[i]]
@@ -1125,6 +1152,8 @@ if __name__ == "__main__":
                         StateMachine.add(name, moves_to_point[j], transitions={
                             "success": next_state_name, "failure": "failure", "exit": "exit"
                         })
+            StateMachine.add("ForwardUntilWhite", Translate(),
+                                        transitions={"success": "success"}) 
 
               
 

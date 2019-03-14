@@ -71,7 +71,7 @@
         <param name="base_link_frame" value="base_footprint"/>
         <param name="world_frame" value="odom"/>
         <param name="transform_time_offset" value="0.0"/>
-        <param name="map_frame" value="$(arg map_frame)"/>
+        <!-- <param name="map_frame" value="$(arg map_frame)"/> -->
         <param name="odom_frame" value="$(arg odom_frame)"/>
         <param name="odom0" value="$(arg odom_topic)"/>
         <param name="imu0" value="$(arg imu_topic)"/>
@@ -123,7 +123,7 @@
 	</node>
 
     <group if="$(eval not mapping)">
-        <include file="$(eval find(arg('package')) + '/launch/misc/amcl.launch.xml')">
+        <!-- <include file="$(eval find(arg('package')) + '/launch/misc/amcl.launch.xml')">
             <arg name="scan_topic"      value="$(arg laser_topic)"/>
             <arg name="odom_frame_id"   value="$(arg odom_frame)"/>
             <arg name="base_frame_id"   value="$(arg base_frame)"/>
@@ -138,7 +138,7 @@
 
         <node name="map_server" pkg="map_server" type="map_server" args="$(arg map)">
             <param name="frame_id" value="$(arg map_frame)"/>
-        </node>
+        </node> -->
 
         <node name="ar_track_alvar_base" pkg="ar_track_alvar" type="individualMarkersNoKinect" respawn="false" output="screen">
             <param name="marker_size"           type="double" value="$(arg marker_size)" />
@@ -170,7 +170,7 @@
             <param name="io_method" value="mmap"/>
         </node>
 
-        <!-- <node pkg="rviz" type="rviz" name="rviz" args="-d $(arg rviz_navigation_configuration)"/> -->
+        <node pkg="rviz" type="rviz" name="rviz" args="-d $(arg rviz_navigation_configuration)"/>
 
         <node pkg="smach_viewer" type="smach_viewer.py" name="smach" />
     </group>
