@@ -1059,7 +1059,7 @@ if __name__ == "__main__":
                 "success": "MoveForward", "failure": "failure", "exit": "exit"})
             StateMachine.add("MoveForward", FollowLine("2.2"), transitions={
                 "see_red": "MoveStraightToPoint", "failure": "failure", "exit": "exit", "see_nothing": "failure", "see_long_red": "failure"})
-            StateMachine.add("MoveStraightToPoint", Translate(0.25, 0.2), transitions={
+            StateMachine.add("MoveStraightToPoint", Translate(0.30, 0.2), transitions={
                 "success": "Turn22","failure": "failure", "exit": "exit"})
             StateMachine.add("Turn22", Turn(90), transitions={
                 "success": "success", "failure": "failure", "exit": "exit"})  # turn left 90
@@ -1135,8 +1135,8 @@ if __name__ == "__main__":
         phase4_sm = StateMachine(outcomes=['success', 'failure', 'exit'])
 
         move_list = {
-            "point8": [Turn(90), MoveBaseGo(1.1), Turn(0)],
-            "point5": [MoveBaseGo(0.25), Turn(90), MoveBaseGo(0.2)],
+            "point8": [Turn(90), MoveBaseGo(1.2), Turn(0)],
+            "point5": [MoveBaseGo(0.25), Turn(90), MoveBaseGo(0.2), Turn(90)],
             "point4": [Turn(180), MoveBaseGo(0.75), Turn(90)],
             "point7": [Turn(180), MoveBaseGo(0.45), Turn(-90)], 
             "point6": [Turn(180), MoveBaseGo(0.7), Turn(-90)],
@@ -1146,7 +1146,7 @@ if __name__ == "__main__":
             "exit":   [Turn(-90), MoveBaseGo(1.6), Turn(-90)],
         }
 
-        park_distance =       [0.3,       0.5,       0.5,     0.5 ,       0.5,       0.5,   0.5,      0.5,      0.5]
+        park_distance =       [0.25,       0.5,       0.5,     0.5 ,       0.5,       0.5,   0.5,      0.5,      0.5]
 
         checkpoint_sequence = ["point8", "point5", "point4", "point7", "point6", "point3", "point2", "point1", "exit"]
 
