@@ -10,7 +10,7 @@ For this competition, we want the robot to follow a pre-defined course and do di
 
 - The course map in simulation:
 
-    <img src="https://github.com/CMPUT412W19Team6/Comp3/blob/master/course.PNG" width="200">
+    <img src="https://github.com/CMPUT412W19Team6/Comp3/blob/master/course.PNG" width="400">
 
 - The actual course's picture:
 
@@ -269,11 +269,9 @@ _Concept_:
       
 ## 5. Lesson Learned
 
-### Do it the ROS way: Separate tasks into seprate nodes
+### Clean up code before competition
     
-    During our competition, we had counting objects for location1 together with our main node (which 
-    is using image to follow white lines). Because image processing for counting the objects took too 
-    many computing resources, the camera was not responding correctly for line following, so the robot
-    always went off track after location1. However, after we took the image process part out and put 
-    it into another node, it works perfectly. 
+    During our competition, our last push to the github contains a lot of debugging lines where we commented out 
+    some part of the functionalities for testing purpose. We didn't realize that during running our competition and
+    ended up using debuging code for the whole competition part. 
     
