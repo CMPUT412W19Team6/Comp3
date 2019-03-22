@@ -253,7 +253,7 @@ _Concept_:
         2.3 Turn towards the off ramp white line
         2.4 Follow the white line that is visible in the middle to its end
 
-### Completing tasks at location 3
+### Completing tasks at location 4
 
 _Concept_:
 
