@@ -197,6 +197,24 @@ _Concept_:
     3. Calculate the the sum of the area of all the contours.
 
     4. Differentiate between large and small spots using a threshold on the sum of area.
+
+### Going off ramp
+
+_Concept_:
+
+    1. After completing everything from location 2, get back on the main track.
+    2. When the first red marker is seen:
+        2.1 Stop for a little while
+        2.2 Go forward a little
+        2.3 Turn towards the off ramp white line
+        2.4 Follow the white line that is visible in the middle to its end
+
+### Completing tasks at location 3
+
+_Concept_:
+
+    1. For each parking spot, do the following:
+        
       
 ## 5. Lesson Learned
 
