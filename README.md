@@ -275,3 +275,4 @@ _Concept_:
     some part of the functionalities for testing purpose. We didn't realize that during running our competition and
     ended up using debuging code for the whole competition part. 
     
+## 6.[Competition Video](https://drive.google.com/file/d/1rqg_HoAU1SjKNqqhCAPV1xClTwfXrRAY/view?usp=sharing)
