@@ -202,7 +202,7 @@ _Concept_:
 
 _Concept_:
 
-    1. After completing everything from location 2, get back on the main track.
+    1. After completing everything from location 2, get back on the main track and keep following it.
     2. When the first red marker is seen:
         2.1 Stop for a little while
         2.2 Go forward a little
@@ -214,6 +214,13 @@ _Concept_:
 _Concept_:
 
     1. For each parking spot, do the following:
+        1.1 Drive outside the box of the parking spot
+        1.2 Turn to face the box
+        1.3 If the spot is the designated spot for parking or there is an AR tag or an object with shape matching with the green shape of location 2
+            1.3.1 Go forward until completely inside the box
+            1.3.2 Do appropriate LED indication
+            1.3.3 Go back until the robot is back at where it was at step 1.3
+    2. Go to the exit point and switch to next phase
         
       
 ## 5. Lesson Learned
