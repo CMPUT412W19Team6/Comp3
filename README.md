@@ -10,11 +10,11 @@ For this competition, we want the robot to follow a pre-defined course and do di
 
 - The course map in simulation:
 
-    <img src="https://github.com/CMPUT412W19Team6/Comp3/blob/master/simulation/media/materials/course.png?s=200" width="200">
+    <img src="https://github.com/CMPUT412W19Team6/Comp3/blob/master/course.PNG" width="200">
 
 - The actual course's picture:
 
-    <img src="https://github.com/CMPUT412W19Team6/Competition2/blob/master/course_pic.png?s=200" width="200">
+    <img src="https://github.com/CMPUT412W19Team6/Comp3/blob/master/course_real.jpg" width="200">
 <!-- ![pick link](https://github.com/CMPUT412W19Team6/Competition2/blob/master/course_pic.png?s=200) -->
 
 - Explanation:
