@@ -160,12 +160,38 @@ For this competition, we want the robot to follow a pre-defined course and do di
 
 ### Overview
 
-- state machine:
-    ![statemachine](https://github.com/CMPUT412W19Team6/Competition2/blob/master/SM_Full.png?s=200)
+state machine:
 
-    > Note1: There are 4 phases and a wait start in the state machine. Whenver the robot saw a long red strip on the road, it will do a temperary stop.
+  * Overview:
+      > Note1: There are 4 phases and a wait start in the state machine. Whenver the robot saw a long red strip on the road, it will do a temperary stop.
     
-    > Note2: The waite state is the starting state. When `button A` is pressed, it will enter Phase 1. And if `button B` is pressed during any phase, it will return to wait state.
+      > Note2: The waite state is the starting state. When `button A` is pressed, it will enter Phase 1. And if `button B` is pressed during any phase, it will return to wait state.
+  
+    ![statemachine](https://github.com/CMPUT412W19Team6/Comp3/blob/master/general.PNG?s=200)
+   
+
+    
+    
+   * Phase1:
+   
+     ![statemachine](https://github.com/CMPUT412W19Team6/Comp3/blob/master/phase1.PNG?s=200)
+   
+   * Phase2:
+   
+     ![statemachine](https://github.com/CMPUT412W19Team6/Comp3/blob/master/phase2.PNG?s=200)
+   
+   * Phase4:
+     > Note1: This phase is really long, and is generated based on an `orderedDictionary`, whose values are lists of "moving actions"
+     (e.g. translation and rotation)
+     
+     > Note2: The last item in the `orderedDictionary` is to move robot to the exit of the parking area, i.e. the off ramp at the end
+   
+     ![statemachine](https://github.com/CMPUT412W19Team6/Comp3/blob/master/Phase4.PNG?s=200)
+   
+   * Phase3:
+   
+     ![statemachine](https://github.com/CMPUT412W19Team6/Comp3/blob/master/phase3.PNG?s=200)
+   
 
 ### Counting objects
 
