@@ -34,20 +34,27 @@ For this competition, we want the robot to follow a pre-defined course and do di
         Example picture:         
         <img src="https://github.com/CMPUT412W19Team6/Competition2/blob/master/location2.png?s=200" width="200">
         <!-- Example picture: ![location 2 picture](https://github.com/CMPUT412W19Team6/Competition2/blob/master/location2.png?s=200) -->
+         c. Location 3: 
         
-        c. Location 3: 
-        
-        Park at one of the parking spots specified at the start of the run, park at the spot where the AR tag is located, park at the spot that has the object with the same shape as the green shape from Location 2.
+        Recognize the red shapes on the left one by one, and signal with a sound when finding one that's matching the green shape discovered at Location 2. 
         Example picture:         
         <img src="https://github.com/CMPUT412W19Team6/Competition2/blob/master/location3.png?s=200" width="200">
         <!-- Example picture: ![location 3 picture](https://github.com/CMPUT412W19Team6/Competition2/blob/master/location3.png?s=200) -->
         
         d. Location 4: 
         
-        Recognize the red shapes on the left one by one, and signal with a sound when finding one that's matching the green shape discovered at Location 2. 
-        Example picture:         
-        <img src="https://github.com/CMPUT412W19Team6/Competition2/blob/master/location3.png?s=200" width="200">
+        * Park at one of the parking spots specified at the start of the run, sigal sound and red LED light.
+        
+        * Park at the spot where the AR tag is located, signal sound and green LED light.
+        
+            <img src="https://github.com/CMPUT412W19Team6/Comp3/blob/master/ar.jpg" width="200" title="AR tag">
+        
+        * Park at the spot that has the object with the same shape as the green shape from Location 2, signal sound and orange LED light
+        
+            <img src="https://github.com/CMPUT412W19Team6/Comp3/blob/master/object.jpg" width="200" title="shape">
+        
         <!-- Example picture: ![location 3 picture](https://github.com/CMPUT412W19Team6/Competition2/blob/master/location3.png?s=200) -->
+
 
 
 ## 2. Pre-requisites
@@ -55,9 +62,10 @@ For this competition, we want the robot to follow a pre-defined course and do di
 ## 2.1 Hardware requirement
 
 - A kobuki turtlebot base
+- A USB Camera
 - An Asus Xtion Pro
 - A controller (prefered logitech)
-- A device with minimum 3 usb ports
+- A device with minimum 4 usb ports
 - The course set up 
 
 ### 2.2 Software requirement
@@ -94,6 +102,16 @@ For this competition, we want the robot to follow a pre-defined course and do di
 - Python package `imutils` ([Repo here](https://github.com/jrosebr1/imutils))
   ```
   pip install imutils
+  ```
+  
+- rviz ([Wiki here](http://wiki.ros.org/rviz))
+  ```
+  sudo apt-get install ros-kinetic-visualization
+  ```
+  
+- ar_track_alvar ([Wiki here](http://wiki.ros.org/ar_track_alvar))
+  ```
+  sudo apt-get install ros-kinetic-ar-track-alvar
   ```
 ## 3. Execution
 
@@ -145,7 +163,7 @@ For this competition, we want the robot to follow a pre-defined course and do di
 - state machine:
     ![statemachine](https://github.com/CMPUT412W19Team6/Competition2/blob/master/SM_Full.png?s=200)
 
-    > Note1: There are 3 phases and a wait start in the state machine. Everytime the robot saw a long red strip, it will end the current phase.
+    > Note1: There are 4 phases and a wait start in the state machine. Whenver the robot saw a long red strip on the road, it will do a temperary stop.
     
     > Note2: The waite state is the starting state. When `button A` is pressed, it will enter Phase 1. And if `button B` is pressed during any phase, it will return to wait state.
 
