@@ -23,7 +23,12 @@ def image_callback(msg):
         lower_red = np.array([150, 150, 80])
         upper_red = np.array([360, 256, 225])
 
+        h, w, d = image.shape
         mask = cv2.inRange(hsv, lower_red, upper_red)
+        search_bot = 1*h/5
+
+        # mask[0:search_top, 0:w] = 0
+        mask[search_bot:h, 0:w] = 0
 
         count = countRed(mask)
         if count > 0:
