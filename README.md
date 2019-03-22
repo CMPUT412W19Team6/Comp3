@@ -4,7 +4,7 @@
 
 ## 1. Purpose
 
-For this competition, we want the robot to follow a pre-defined course and do different vision tasks. 
+For this competition, we want the robot to follow a pre-defined course and do different vision and navigation tasks. 
 
 ### The Course Map
 
@@ -19,7 +19,7 @@ For this competition, we want the robot to follow a pre-defined course and do di
 
 - Explanation:
      - The robot is supposed to follow the white lines on the floor, and stop for a bit when reaching a red mark on the floor.
-     - There are 3 locations where a vision task is required:
+     - There are 3 locations (1,2 and 4) where vision tasks are required in addition to another location (3) that requires both vision and navigation tasks:
         
         a. Location 1: 
         
@@ -36,6 +36,13 @@ For this competition, we want the robot to follow a pre-defined course and do di
         <!-- Example picture: ![location 2 picture](https://github.com/CMPUT412W19Team6/Competition2/blob/master/location2.png?s=200) -->
         
         c. Location 3: 
+        
+        Park at one of the parking spots specified at the start of the run, park at the spot where the AR tag is located, park at the spot that has the object with the same shape as the green shape from Location 2.
+        Example picture:         
+        <img src="https://github.com/CMPUT412W19Team6/Competition2/blob/master/location3.png?s=200" width="200">
+        <!-- Example picture: ![location 3 picture](https://github.com/CMPUT412W19Team6/Competition2/blob/master/location3.png?s=200) -->
+        
+        d. Location 4: 
         
         Recognize the red shapes on the left one by one, and signal with a sound when finding one that's matching the green shape discovered at Location 2. 
         Example picture:         
@@ -115,9 +122,19 @@ For this competition, we want the robot to follow a pre-defined course and do di
 5. Start the library
 
    ```bash
-   roslaunch comp2 start.launch
+   roslaunch comp3 comp3.launch
    ```
-
+5. Specify the parking spot of location 3 by doing one of the following button combo on the joypad
+   ```
+   1st spot: Left Bar + A
+   2nd spot: Left Bar + B
+   3rd spot: Left Bar + X
+   4th spot: Left Bar + Y
+   5th spot: Right Bar + A
+   6th spot: Right Bar + B
+   7th spot: Right Bar + X
+   8th spot: Right Bar + Y
+   ```
 6. Start the turtlebot by pressing A on the controller
 
 
